@@ -1,0 +1,2539 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Heaven 的博客</title>
+  
+  <link href="/blog/atom.xml" rel="self"/>
+  
+  <link href="http://heavenru.com/blog/"/>
+  <updated>2017-09-20T10:23:04.000Z</updated>
+  <id>http://heavenru.com/blog/</id>
+  
+  <author>
+    <name>Heaven</name>
+    
+  </author>
+  
+  <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>使用 CANVAS 实现帧动画</title>
+    <link href="http://heavenru.com/blog/2017/07/31/%E4%BD%BF%E7%94%A8CANVAS%E5%AE%9E%E7%8E%B0%E8%A7%86%E9%A2%91%E5%8A%A8%E7%94%BB/"/>
+    <id>http://heavenru.com/blog/2017/07/31/使用CANVAS实现视频动画/</id>
+    <published>2017-07-31T11:38:52.000Z</published>
+    <updated>2017-09-20T10:23:04.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>在最近项目中需要实现一个精灵动画，素材方只提供了一个短视频素材，所以在实现精灵动画之前先介绍两个工具来帮助我们更好的实现需求。在这篇文章中，主要是介绍两个命令行工具来实现将一个短视频文件转化成一张 sprite 图片与如何使用 canvas 绘制精灵动画<br><a id="more"></a></p>
+<p>两个工具官方地址如下：</p>
+<ul>
+<li><a href="https://www.ffmpeg.org/" target="_blank" rel="external">ffmpeg</a></li>
+<li><a href="http://www.imagemagick.org/script/montage.php" target="_blank" rel="external">montage</a></li>
+</ul>
+<h2 id="1、ffmpeg-视频转图片工具"><a href="#1、ffmpeg-视频转图片工具" class="headerlink" title="1、ffmpeg 视频转图片工具"></a>1、ffmpeg 视频转图片工具</h2><p>ffmpeg 是「一个完整的跨平台解决方案，用于记录，转换和流式传输音频和视频的工具」，它的作用原不止于这篇文章中所介绍的，有兴趣的同学可以自己去官方网站了解更多。</p>
+<h3 id="将视频转成图片输出"><a href="#将视频转成图片输出" class="headerlink" title="将视频转成图片输出"></a>将视频转成图片输出</h3><h4 id="基本用法"><a href="#基本用法" class="headerlink" title="基本用法"></a>基本用法</h4><pre><code class="bash">./ffmpeg -i jellyfish.mp4 -vf scale=138:-1 -r 8 %04d.png
+</code></pre>
+<ul>
+<li><code>-i</code> 视频流输入 URL</li>
+<li><code>-vf</code> 创建由过滤器指定的过滤器，并使用它过滤流，过滤器是要应用于流的过滤器的描述，并且必须具有相同类型流的单个输入和单个输出。对应的过滤器参数必须跟在这个之后，不然无法生效</li>
+<li><code>scale</code> 视频缩放，<code>scale=width:height</code> 其中，如果 <code>height=-1</code> ，则表示自适应高度，按照视频的宽高比输出,后面紧接这 <code>scale=width:height,setar=16:9</code> 则可以指定输出宽高比</li>
+<li><code>-r</code> 视频输出 <code>fps</code> 值, 值越大，则以越高的 <code>fps</code> 切片视频，别名 <code>-framerate</code>，比如我们想以 60fps 去裁剪视频导出图片，则使用 <code>-r 60</code></li>
+<li><code>-aspect</code> 视频输出宽高比，比如常用的 <code>4:3</code>、<code>16:9</code> 都是规范的参数用法</li>
+<li><code>-ss</code> 裁剪开始位置，表示从视频的某个时间开始裁剪，是一个非常有用的参数，该参数使用位置放在 <code>-i</code> 前面，参数格式 <code>hh:mm:ss</code> 表示时分秒</li>
+<li><code>-t</code> 持续时间，表示需要裁剪的视频长度，通常配合 <code>-ss</code> 一起使用，就能实现裁剪任意视频时间段的内容了，比如我们需要裁剪 <code>5-10</code> 秒的视频导出，可以这么配合使用 <code>ffmgeg -ss 00:00:05 -t 00:00:10</code></li>
+<li><code>-vframes</code> 设定输出视频帧数，它是 <code>-frames:v</code> 的别名</li>
+<li><code>-qscale:v 2</code> 指定输出图片质量，取值范围<code>2-31</code>，值越大，质量越差，建议取值 <code>2-5</code></li>
+</ul>
+<h4 id="综合应用："><a href="#综合应用：" class="headerlink" title="综合应用："></a>综合应用：</h4><pre><code class="bash、">// 截取 60 秒处的一张图片
+ffmpeg -ss 60 -i input.mp4 -qscale:v 2 -vframes 1 output.jpg
+
+// 将视频按照 60fps 的速度导出所有图片
+ffmpeg -i input.mp4 -r 60 %04d.png
+</code></pre>
+<h2 id="2、合并多个图片为一张图片-montage"><a href="#2、合并多个图片为一张图片-montage" class="headerlink" title="2、合并多个图片为一张图片 montage"></a>2、合并多个图片为一张图片 montage</h2><p>通过上面介绍的工具，我们能很轻易的将一个视频转化为一系列的图片文件，那么这个时候，我们就可以使用 <a href="http://www.imagemagick.org/script/montage.php" target="_blank" rel="external">montage</a> 工具将前面导出的 n 张图片合并为一张图片</p>
+<h4 id="基本用法："><a href="#基本用法：" class="headerlink" title="基本用法："></a>基本用法：</h4><pre><code class="bash">montage -border 0 -geometry 138x -tile 89x -quality 100% *.png myvideo.jpg
+</code></pre>
+<ul>
+<li><code>-tile</code> 代表需要合并的一行图片数量，当超出这个数字的时候，将换行合并</li>
+<li><code>-quality</code> 代表合成图片质量，取值范围 <code>0 - 100%</code></li>
+</ul>
+<h2 id="3、绘制-canvas-精灵动画"><a href="#3、绘制-canvas-精灵动画" class="headerlink" title="3、绘制 canvas 精灵动画"></a>3、绘制 canvas 精灵动画</h2><p>在开始编辑代码之前，我们整理一下需求：</p>
+<ul>
+<li>动画需要能循环播放</li>
+<li>动画需要能指定从某一帧开始渲染</li>
+<li>指定渲染多少帧动画</li>
+<li>动画需要能控制渲染帧率</li>
+<li>当精灵图片不是单行的时候，要能实现自动换行渲染</li>
+</ul>
+<p>OK，明白了我们的需求之后，我们开始编写代码。先来一个简易的参数合并工具方法</p>
+<pre><code class="javascript">var _extends = Object.assign || function (target) {
+  for (var i = 1; i &lt; arguments.length; i++) {
+    var source = arguments[i];
+    for (var key in source) { // 遍历传入的对象的属性
+      if (Object.prototype.hasOwnProperty.call(source, key)) { // 只操作该实例上的属性和方法, 避免循环原型
+        target[key] = source[key];
+      }
+    }
+  }
+  return target;
+}
+</code></pre>
+<p>接下来是我们的 canvas 精灵对象</p>
+<pre><code class="javascript">function Sprite(canvas, opts) {
+  var defaults = {
+    loop: false,  // 是否循环播放
+    frameIndex: 0,  // 当前第几帧
+    startFrameIndex: 0, // 其实渲染位置
+    tickCount: 0, // 每个时间段内计数器
+    ticksPerFrame: 1, // 每个渲染时间段帧数，通过这个来控制动画的渲染速度
+    numberOfFrames: 1, // 动画总帧数
+    numberOfPerLine: undefined, // 每行动画帧数
+    width: 0, // 画布宽度
+    height: 0, // 画屏高度
+    sprite: undefined  // 图片 image 对象
+  };
+
+  var params = opts || {};
+  this.canvas = canvas;
+  this.ctx = canvas.getContext(&#39;2d&#39;);
+  this.options = _extends({}, defaults, params);
+
+  if (this.image) throw new Error(&#39;请传入图片对象&#39;);
+
+  // 这里的取 Math.min() 的原因是，在 safari 下面，如果图片的大小超过了画布的大小，那么将不会渲染任何图像
+  // 所以在这里，我们去画布和图片中的小者。
+  this.options.width = Math.min(this.canvas.width, this.options.sprite.width);
+  this.options.height = Math.min(this.canvas.height, this.options.sprite.height);
+  if (!this.options.numberOfPerLine) {
+    this.options.numberOfPerLine = this.options.numberOfFrames || 9999;
+  }
+}
+
+Sprite.prototype.render = function () {
+  this.ctx.clearRect(0, 0, this.options.width, this.options.height);
+  // 核心绘制代码，主要使用了 canvas.drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight) API
+  // this.options.frameIndex % this.options.numberOfPerLine 每次求余数，判断是否换行
+  // Math.floor(this.options.frameIndex / this.options.numberOfPerLine)
+  this.ctx.drawImage(this.options.sprite, this.options.width * (this.options.frameIndex % this.options.numberOfPerLine), this.options.height * Math.floor(this.options.frameIndex / this.options.numberOfPerLine), this.options.width, this.options.height, 0, 0, this.options.width, this.options.height);
+}
+
+Sprite.prototype.update = function () {
+  this.options.tickCount++;
+  // 控制帧率的核心部分，在每个绘制时间点，判断当前的计数器是否大于我们传入的值
+  if (this.options.tickCount &gt; this.options.ticksPerFrame) {
+    this.options.tickCount = 0;
+
+    // 动画循环判断
+    if (this.options.frameIndex &lt; this.options.numberOfFrames - 1) {
+      this.options.frameIndex++;
+    } else if (this.options.loop) {
+      // 每次循环都从给定的 startFrameIndex 开始
+      this.options.frameIndex = this.options.startFrameIndex;
+    }
+  }
+}
+</code></pre>
+<p>到这里，我们的精灵类基本完成了，接下来看下具体在业务代码中如何使用它</p>
+<pre><code class="javascript">var spriteCanvas = document.getElementById(&#39;spriteCanvas&#39;);
+spriteCanvas.width = 138;
+spriteCanvas.height = 308;
+var isSpriteLoaded = false;
+var spriteImage = new Image();
+var sprite;
+
+// 这里有个 IE 下的 BUG，如果我们的 sprite 在图片没有加载完全就执行
+// 那么在 IE 下面会抛出一个 DOM Exception
+// 因此我们将 Sprite 初始化放在了 image.onlaod 回调函数中执行
+sprite.onload = function () {
+  sprite = new Sprite(spriteCanvas, {
+    sprite: spriteImage,
+    loop: true,
+    numberOfFrames: 92,
+    ticksPerFrame: 3
+  });
+
+  spriteAnimate();
+}
+
+sprite.src = &#39;xxxxx/sprite.jpg&#39;;
+
+function spriteAnimate() {
+  requestAnimationFrame(spriteAnimate);
+  sprite.render();
+  sprite.update();
+}
+</code></pre>
+<p>文章到这里基本完成了，想要看具体效果的同学，可以去这里查看<br>传送门： <a href="https://www.meizu.com/pro7/fenetre/" target="_blank" rel="external">水母动画</a>， <a href="https://www.meizu.com/pro7/summary/" target="_blank" rel="external">蜂鸟动画</a></p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p><a href="https://developer.mozilla.org/zh-CN/docs/Web/API/CanvasRenderingContext2D/drawImage" target="_blank" rel="external">https://developer.mozilla.org/zh-CN/docs/Web/API/CanvasRenderingContext2D/drawImage</a><br><a href="http://www.williammalone.com/articles/create-html5-canvas-javascript-sprite-animation/" target="_blank" rel="external">http://www.williammalone.com/articles/create-html5-canvas-javascript-sprite-animation/</a></p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;在最近项目中需要实现一个精灵动画，素材方只提供了一个短视频素材，所以在实现精灵动画之前先介绍两个工具来帮助我们更好的实现需求。在这篇文章中，主要是介绍两个命令行工具来实现将一个短视频文件转化成一张 sprite 图片与如何使用 canvas 绘制精灵动画&lt;br&gt;
+    
+    </summary>
+    
+      <category term="JavaScript" scheme="http://heavenru.com/blog/categories/JavaScript/"/>
+    
+    
+      <category term="原生 JS" scheme="http://heavenru.com/blog/tags/%E5%8E%9F%E7%94%9F-JS/"/>
+    
+      <category term="CANVAS" scheme="http://heavenru.com/blog/tags/CANVAS/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>自定义angular2输入组件</title>
+    <link href="http://heavenru.com/blog/2016/11/24/%E8%87%AA%E5%AE%9A%E4%B9%89angular2%E8%BE%93%E5%85%A5%E7%BB%84%E4%BB%B6/"/>
+    <id>http://heavenru.com/blog/2016/11/24/自定义angular2输入组件/</id>
+    <published>2016-11-24T11:17:44.000Z</published>
+    <updated>2017-09-20T10:22:21.000Z</updated>
+    
+    <content type="html"><![CDATA[<h1 id="构建一个自定义-angular2-输入组件"><a href="#构建一个自定义-angular2-输入组件" class="headerlink" title="构建一个自定义 angular2 输入组件"></a>构建一个自定义 angular2 输入组件</h1><p>今天我们来学习如何正确的构建和一个具有和 <code>&lt;input type=&quot;text&quot;&gt;</code> 同样作用，但同时也具有自己的逻辑的输入组件。<a id="more"></a></p>
+<p>在开始文章之前，在读这篇文章之前，希望你已经把官方的文档和案例都看过至少一遍了，具体的一些概念和细节不会在文章中讲解。</p>
+<p>我们先来看一下我们这篇文章里面所介绍的组件的表现形式是怎么样的：</p>
+<p><img src="/images/angular2/angular2-demo.gif" alt="目标图"></p>
+<p>OK，上图就是我们所要达到的效果了。那么，我们来分析下我们这个组件改具备哪些功能。</p>
+<ul>
+<li>聚焦的时候，底部边框为绿色</li>
+<li>具有自己的部分逻辑，比如在有输入值的情况下，会出现一个删除图标</li>
+<li>当输入值为空的时候，提示错误文案</li>
+<li>可以插入其它的 DOM，比如最下面的发送验证码按钮</li>
+<li>支持 <code>input</code> 的必要属性，比如 <code>maxlength、placeholder</code>等</li>
+<li>支持表单 <code>angular2 form-control</code> 表单绑定，如上图中的值都是从 <code>FormBuilder</code> 中构建的</li>
+</ul>
+<p>我们将在后面一步步的来讲解如何实现这样一个自定义组件的功能；</p>
+<h2 id="创建一个-angular2-组件"><a href="#创建一个-angular2-组件" class="headerlink" title="创建一个 angular2 组件"></a>创建一个 angular2 组件</h2><p>我们先来构建一个基础的 <code>angular2</code> 组件,这里我们先新建一个叫做 <code>input-control</code> 的组件。</p>
+<p>首先是 <code>input-control.component.ts</code> 文件：</p>
+<pre><code class="typescript">@Component({
+  selector: &#39;input-control&#39;,
+  templateUrl: &#39;input-control.component.html&#39;,
+  styleUrls: [&#39;input-control.component.scss&#39;],
+  encapsulation: ViewEncapsulation.None,
+})
+</code></pre>
+<p>然后是 <code>input-control.component.html</code> 文件：</p>
+<pre><code class="html">&lt;input #input
+  [type]=&quot;type&quot;
+  [name]=&quot;name&quot;
+  (focus)=&quot;_handleFocus($event)&quot;
+  (blur)=&quot;_handleBlur($event)&quot;
+  [placeholder]=&quot;placeholder&quot;
+  [(ngModel)]=&quot;value&quot;
+  [minlength]=&quot;minlength&quot;
+  [maxlength]=&quot;maxlength&quot;
+  [readonly]=&quot;readonly&quot;
+  [disabled]=&quot;disabled&quot;&gt;
+&lt;i #iconDelete *ngIf=&quot;focused &amp;&amp; !readonly&quot; class=&quot;icon icon-delete&quot; (click)=&quot;_handleClear($event)&quot;&gt;&lt;/i&gt;
+</code></pre>
+<p>剩下就是 <code>input-control.component.scss</code> 文件了，这里我就补贴出代码了，各位可以根据自己的项目来设置对应的样式</p>
+<p>最后，就是我们调用的时候的方式:</p>
+<pre><code class="html">&lt;input-control class=&quot;input-control&quot;
+  [class.error]=&quot;!mobile.valid &amp;&amp; mobile.touched&quot;
+  type=&quot;tel&quot;
+  name=&quot;mobile&quot;
+  placeholder=&quot;手机号&quot;
+  maxlength=&quot;11&quot;
+  [formControl]=&quot;mobile&quot;&gt;
+  &lt;p *ngIf=&quot;mobile.touched &amp;&amp; mobile.hasError(&#39;mobile&#39;)&quot; class=&quot;error-tips&quot;&gt;请输入正确的手机号码&lt;/p&gt;
+&lt;/input-control&gt;
+</code></pre>
+<p>是否对于上面的一些属性和变量感到困惑，别急，让我一步步道来</p>
+<h2 id="功能细分"><a href="#功能细分" class="headerlink" title="功能细分"></a>功能细分</h2><h3 id="输入属性-Input"><a href="#输入属性-Input" class="headerlink" title="输入属性 @Input()"></a>输入属性 <code>@Input()</code></h3><p>有一点要谨记：<strong>我们是在用 DIV 来模拟一个 input 的表现，同时具备自己的逻辑</strong>; 所以，当我们需要 <code>input</code> 的对应属性值的时候，我们都需要从父容器传递到组件内部的 <code>input</code> 上面，所以在这里我们需要用到 <code>@Input</code> 特性了</p>
+<p>我们在 <code>input-control.component.ts</code> 定义我们所需的一些属性：</p>
+<pre><code class="typescript">@Component({
+  selector: &#39;input-control&#39;,
+  templateUrl: &#39;input-control.component.html&#39;,
+  styleUrls: [&#39;input-control.component.scss&#39;],
+  host: {
+    // 宿主元素 click 事件，触发 focus() 事件
+    &#39;(click)&#39;: &#39;focus()&#39;,
+    // 切换宿主元素 focus 样式
+    &#39;[class.focus]&#39;: &#39;focused&#39;
+  }
+})
+export class InputControlComponent {
+  private _focused: boolean = false;
+  private _value: any = &#39;&#39;;
+  private _disabled: boolean = false;
+  private _readonly: boolean = false;
+  private _required: boolean = false;
+
+  // 外部传入属性
+  @Input() type: string = &#39;text&#39;;
+  @Input() name: string = null;
+  @Input() placeholder: string = null;
+  @Input() minlength: number;
+  @Input() maxlength: number;
+
+  // value 属性，以 get 方式拦截
+  get value(): any {
+    return this._value;
+  };
+
+  @Input() set value(v: any) {
+    v = this._convertValueForInputType(v);
+    if (v !== this._value) {
+      this._value = v;
+      // 触发值改变事件，冒泡给父级
+      this._onChangeCallback(v);
+    }
+  }
+
+  // 只读属性
+  get focused() {
+    return this._focused;
+  }
+
+  @Input()
+  get disabled(): boolean {
+    return this._disabled;
+  }
+  set disabled(value) {
+    this._disabled = this._coerceBooleanProperty(value);
+  }
+
+  @Input()
+  get readonly(): boolean {
+    return this._readonly;
+  }
+  set readonly(value) {
+    this._readonly = this._coerceBooleanProperty(value);
+  }
+
+  @Input()
+  get required(): boolean {
+    return this._required;
+  }
+  set required(value) {
+    this._required = this._coerceBooleanProperty(value);
+  }
+}
+</code></pre>
+<p>回顾的我们前面的 <code>input-control.component.html</code> 文件，我们定义了 <code>type</code>、<code>name</code>、<code>placeholder</code>、<code>minlength</code>、<code>maxlength</code> 可读写的属性，同时还有 <code>value</code>、<code>readonly</code>、<code>disabled</code>、<code>required</code> 等只读属性。通过 <code>[属性]=&quot;源&quot;</code> 方式，接收父级传入的数据。</p>
+<p>OK，属性我们都知道如何从父级去接收了，那么接下来我们来实现 <strong>点击</strong> 操作： </p>
+<p>我们先修改 <code>input-control.component.ts</code> 文件</p>
+<pre><code class="typescript">@Component({
+  ……
+  host: {
+    // 宿主元素 click 事件，触发 focus() 事件
+    &#39;(click)&#39;: &#39;focus()&#39;,
+    // 切换宿主元素 focus 样式
+    &#39;[class.focus]&#39;: &#39;focused&#39;
+  }
+})
+</code></pre>
+<p>我们利用了 <code>host</code> 这个属性，用来给宿主元素对应操作，传送门 <a href="https://angular.cn/docs/ts/latest/api/core/index/Component-decorator.html" target="_blank" rel="external">@Component 相关属性</a>;<br>我们给宿主元素也就是 <code>&lt;input-control&gt;&lt;/input-control&gt;</code> 绑定了一个 <code>click</code> 事件，同时根据自身属性 <code>focused</code> 来切换一个 <code>.focus</code> 类。在我们组件的 <code>focus()</code> 事件中，我们需要让组件内部的 <code>input</code> 聚焦，同时切换自身的 <code>focused</code> 值。为了拿到我们组件内部的 <code>input</code> 元素，这里我们需要使用 <code>@ViewChild()</code>。</p>
+<p>修改 <code>input-control.component.ts</code> 文件如下：</p>
+<pre><code class="typescript">@Component({
+  ……
+  host: {
+    // 宿主元素 click 事件，触发 focus() 事件
+    &#39;(click)&#39;: &#39;focus()&#39;,
+    // 切换宿主元素 focus 样式
+    &#39;[class.focus]&#39;: &#39;focused&#39;
+  }
+})
+export class InputControlComponent {
+  ……
+  ……
+
+  private _focusEmitter: EventEmitter&lt;FocusEvent&gt; = new EventEmitter&lt;FocusEvent&gt;();
+  @ViewChild(&#39;input&#39;) _inputElement: ElementRef; // 组件内部 input 元素
+  @ViewChild(&#39;iconDelete&#39;) iconDelete: ElementRef; // 删除图标元素
+
+  constructor(private hostRef: ElementRef) {
+  }
+
+  // 监听全局的点击事件，如果不是当前 input-control 组，则视为失去焦点操作
+  @HostListener(&#39;window:click&#39;, [&#39;$event&#39;])
+  inputControlBlurHandler(event) {
+    var parent = event.target;
+    // 如何当前节点不是宿主节点，并且不等于 document 节点
+    while (parent &amp;&amp; parent != this.hostRef.nativeElement &amp;&amp; parent != document) {
+      // 取当前节点的父节点继续寻找
+      parent = parent.parentNode;
+    }
+
+    // 找到最顶层，则表示已经不在宿主元素内部了，触发失去焦点 fn
+    if (parent == document) {
+      this._focused = false;
+    }
+  }
+
+  // 宿主聚焦
+  focus() {
+    // 触发下面的 _handleFocus() 事件
+    this._inputElement.nativeElement.focus();
+  }
+
+  // 输入框聚焦
+  _handleFocus(event: FocusEvent) {
+    this._focused = true;
+    this._focusEmitter.emit(event);
+  }
+
+  // 清空输入值
+  _handleClear() {
+    this.value = &#39;&#39;;
+    return false;
+  }
+
+  // 这里触发 blur 操作，但是不改变 this._focused 的值，
+  // 不然删除图标无法实现它的功能，
+  //设置 this._focused 的值将由上面的 @HostListener(&#39;window:click&#39;, [&#39;$event&#39;]) 来处理
+  // 触发父级的 blur 事件
+  _handleBlur(event: any) {
+    this._onTouchedCallback();
+    this._blurEmitter.emit(event);
+  }
+
+  // 对外暴露 focus 事件
+  @Output(&#39;focus&#39;) onFocus = this._focusEmitter.asObservable();
+  ……
+  ……
+}
+</code></pre>
+<p>在上面的代码中，我们通过宿主的 <code>focus()</code> 事件，让 <code>input</code> 元素 <code>focus</code>, 同时 <code>input</code> 元素聚焦之后，会触发下面的 <code>_handleFocus()</code> 方法，在这个方法里面，我们修改组件自身的 <code>focused</code> 属性，并对外发射一个 <code>focus</code> 事件，用来像父级传递使用。同时，我们的删除图标也是根据组件的 <code>focused</code> 属性切换显示：</p>
+<pre><code class="html">&lt;input #input
+  [type]=&quot;type&quot;
+  [name]=&quot;name&quot;
+  (focus)=&quot;_handleFocus($event)&quot;
+  (blur)=&quot;_handleBlur($event)&quot;
+  [placeholder]=&quot;placeholder&quot;
+  [(ngModel)]=&quot;value&quot;&gt;
+&lt;i #iconDelete 
+    *ngIf=&quot;focused &amp;&amp; !readonly&quot; 
+    class=&quot;icon icon-delete&quot; 
+    (click)=&quot;_handleClear($event)&quot;&gt;&lt;/i&gt;
+</code></pre>
+<p>我们的 <code>input</code> 和组件内部的 <code>value</code> 属性进行了双向绑定，所以在 <code>_handleClear</code> 之后，我们的输入框的值自然也就被清空了。</p>
+<h3 id="值访问器-ControlValueAccessor"><a href="#值访问器-ControlValueAccessor" class="headerlink" title="值访问器 ControlValueAccessor"></a>值访问器 <a href="https://angular.cn/docs/ts/latest/api/forms/index/ControlValueAccessor-interface.html" target="_blank" rel="external">ControlValueAccessor</a></h3><p>在完成上面的一些步骤之后，我们的组件基本功能完成了，但是接下来还有最重要的一部分内容，那就是让我们的自定义组件获得 <code>值访问</code> 权限。<br>在官方的文档中有提到一点 <a href="https://github.com/angular/material2/blob/master/src/lib/input/input.ts" target="_blank" rel="external">https://github.com/angular/material2/blob/master/src/lib/input/input.ts</a> </p>
+<p><img src="/images/angular2/control-access.png" alt="值访问器"><br>在查看官方的文档之后，我们发现要实现自定义组件的值访问权限，我们需要继承 <code>ControlValueAccessor</code> 接口，同时实现它内部的对应的接口</p>
+<pre><code class="typescript">// 要实现双向数据绑定，这个不可少
+export const INPUT_CONTROL_VALUE_ACCESSOR: any = {
+  provide: NG_VALUE_ACCESSOR,
+  useExisting: forwardRef(() =&gt; InputControlComponent),
+  multi: true
+};
+
+const noop = () =&gt; {
+};
+
+@Component({
+  selector: &#39;input-control&#39;,
+  templateUrl: &#39;input-control.component.html&#39;,
+  styleUrls: [&#39;input-control.component.scss&#39;],
+  host: {
+    // 宿主元素 click 事件，触发 focus() 事件
+    &#39;(click)&#39;: &#39;focus()&#39;,
+    // 切换宿主元素 focus 样式
+    &#39;[class.focus]&#39;: &#39;focused&#39;
+  },
+  // 
+  encapsulation: ViewEncapsulation.None,
+  providers: [INPUT_CONTROL_VALUE_ACCESSOR]
+})
+export class InputControlComponent implements ControlValueAccessor {
+  ……
+  ……
+  /** Callback registered via registerOnTouched (ControlValueAccessor)
+   * 此属性在做表单校验的时候，不可少，
+   * 如果缺少了这个属性，FormControl.touched 属性将监测不到，切记！！
+   */
+  private _onTouchedCallback: () =&gt; void = noop;
+  /** Callback registered via registerOnChange (ControlValueAccessor) */
+  private _onChangeCallback: (_: any) =&gt; void = noop;
+
+  /**
+   * Write a new value to the element.
+   */
+  writeValue(value: any) {
+    this._value = value;
+  }
+
+  /**
+   * Set the function to be called when the control receives a change event.
+   */
+  registerOnChange(fn: any) {
+    this._onChangeCallback = fn;
+  };
+
+  /**
+   * Set the function to be called when the control receives a touch event.
+   */
+  registerOnTouched(fn: any) {
+    this._onTouchedCallback = fn;
+  }
+  ……
+  ……
+}
+</code></pre>
+<p>正如上面代码中所示的一样，实现了这些对应的接口之后，我们就能像使用普通的 <code>input</code> 元素一样使用我们的自定义组件了。</p>
+<h3 id="允许组件加载内部其它的-DOM-元素"><a href="#允许组件加载内部其它的-DOM-元素" class="headerlink" title="允许组件加载内部其它的 DOM 元素"></a>允许组件加载内部其它的 DOM 元素</h3><p>回顾我们前面文章开头的 GIF 图片，我们还有一个获取验证码的按钮，同时，我们的错误提示也是放在组件内部的。要支持这种形式的，我们需要在组件内部加上 <code>&lt;ng-content&gt;&lt;/ng-content&gt;</code> 标签<br>有了这个之后，所有包裹在 <code>&lt;input-control&gt;&lt;/input-control&gt;</code> 组件内部的元素都将被渲染到组件内部</p>
+<p>父组件调用 <code>input-control</code>:</p>
+<pre><code class="html">&lt;input-control class=&quot;input-control sms-control&quot;
+  [class.error]=&quot;!captcha.valid &amp;&amp; captcha.touched&quot;
+  type=&quot;tel&quot;
+  name=&quot;captcha&quot;
+  placeholder=&quot;请输入验证码&quot;
+  [formControl]=&quot;captcha&quot;
+  maxlength=&quot;5&quot;&gt;
+  &lt;count-down class=&quot;btn-send-sms&quot; counter=&quot;50&quot; title=&quot;获取验证码&quot; countText=&quot;秒后重新获取&quot;&gt;&lt;/count-down&gt;
+  &lt;p *ngIf=&quot;!captcha.valid &amp;&amp; captcha.touched&quot; class=&quot;error-tips&quot;&gt;请输入验证码&lt;/p&gt;
+&lt;/input-control&gt;
+</code></pre>
+<p>浏览器渲染之后的的 DOM 结构：</p>
+<pre><code class="html">&lt;input-control class=&quot;input-control sms-control ng-untouched ng-pristine ng-invalid&quot; maxlength=&quot;5&quot; name=&quot;captcha&quot; placeholder=&quot;请输入验证码&quot; type=&quot;tel&quot; ng-reflect-maxlength=&quot;5&quot; ng-reflect-type=&quot;tel&quot; ng-reflect-name=&quot;captcha&quot; ng-reflect-placeholder=&quot;请输入验证码&quot; ng-reflect-form=&quot;[object Object]&quot;&gt;
+  &lt;input ng-reflect-maxlength=&quot;5&quot; ng-reflect-name=&quot;captcha&quot; ng-reflect-type=&quot;tel&quot; type=&quot;tel&quot; ng-reflect-placeholder=&quot;请输入验证码&quot; placeholder=&quot;请输入验证码&quot; maxlength=&quot;5&quot; class=&quot;ng-untouched ng-pristine ng-valid&quot;&gt;
+&lt;!--template bindings={
+  &quot;ng-reflect-ng-if&quot;: null
+}--&gt;
+  &lt;count-down class=&quot;btn-send-sms&quot; counttext=&quot;秒后重新获取&quot; counter=&quot;50&quot; title=&quot;获取验证码&quot; ng-reflect-counter=&quot;50&quot; ng-reflect-title=&quot;获取验证码&quot; ng-reflect-count-text=&quot;秒后重新获取&quot;&gt;&lt;button&gt;获取验证码&lt;/button&gt;&lt;/count-down&gt;
+      &lt;!--template bindings={
+  &quot;ng-reflect-ng-if&quot;: null
+}--&gt;
+&lt;/input-control&gt;
+</code></pre>
+<h3 id="与-FormControl-结合使用注意事项"><a href="#与-FormControl-结合使用注意事项" class="headerlink" title="与 FormControl 结合使用注意事项"></a>与 FormControl 结合使用注意事项</h3><p>在后期的时候，我整合了自定输入组件与 <code>FormControl</code> 一起使用，在使用过程中，发现在需要使用 <code>.touched</code> 特性的时候，发现无法生效，通过查资料发现，如果需要让这个特性生性，我们的输入组件必须监听 <code>blur</code> 事件并且在处理事件中调用触发对外的 blur 事件，具体代码见前面的 <code>_handleBlur()</code> 内容。<br><br><br>完整 Demo 地址：<a href="https://github.com/lichenbuliren/mcare-app" target="_blank" rel="external">mcare-app</a><br>这个 Demo 里面整合了路由、子模块、服务、动态表单等特性的使用方法，有兴趣的可以参考下，还在持续完善中。这个 Demo 是参照自己做过的项目部分UI，当然不会涉及核心的业务代码：）。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p><a href="https://github.com/angular/material2/blob/master/src/lib/input/input.ts" target="_blank" rel="external">Angular2 material2 官方UI库</a><br><a href="http://blog.thoughtram.io/angular/2016/07/27/custom-form-controls-in-angular-2.html" target="_blank" rel="external">CUSTOM FORM CONTROLS IN ANGULAR 2</a><br><a href="http://stackoverflow.com/questions/38447681/touched-untouched-not-updating-in-custom-input-component-angular-2" target="_blank" rel="external">http://stackoverflow.com/questions/38447681/touched-untouched-not-updating-in-custom-input-component-angular-2</a></p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h1 id=&quot;构建一个自定义-angular2-输入组件&quot;&gt;&lt;a href=&quot;#构建一个自定义-angular2-输入组件&quot; class=&quot;headerlink&quot; title=&quot;构建一个自定义 angular2 输入组件&quot;&gt;&lt;/a&gt;构建一个自定义 angular2 输入组件&lt;/h1&gt;&lt;p&gt;今天我们来学习如何正确的构建和一个具有和 &lt;code&gt;&amp;lt;input type=&amp;quot;text&amp;quot;&amp;gt;&lt;/code&gt; 同样作用，但同时也具有自己的逻辑的输入组件。
+    
+    </summary>
+    
+      <category term="JavaScript" scheme="http://heavenru.com/blog/categories/JavaScript/"/>
+    
+      <category term="angular2.js" scheme="http://heavenru.com/blog/categories/JavaScript/angular2-js/"/>
+    
+    
+      <category term="angular2" scheme="http://heavenru.com/blog/tags/angular2/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>使用Vue.js构建单页应用</title>
+    <link href="http://heavenru.com/blog/2016/07/03/%E4%BD%BF%E7%94%A8Vue-js%E6%9E%84%E5%BB%BA%E5%8D%95%E9%A1%B5%E5%BA%94%E7%94%A8/"/>
+    <id>http://heavenru.com/blog/2016/07/03/使用Vue-js构建单页应用/</id>
+    <published>2016-07-03T12:56:24.000Z</published>
+    <updated>2017-09-20T10:25:51.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>前言：在最近学习 Vue.js 的时候，看到国外一篇讲述了如何使用 Vue.js 和 Vuex 来构建一个简单笔记的单页应用的文章。感觉收获挺多，自己在它的例子的基础上进行了一些优化和自定义功能，在这里和大家分享下学习心得。<br><a id="more"></a></p>
+<p>原文地址：<a href="https://coligo.io/learn-vuex-by-building-notes-app/" target="_blank" rel="external">https://coligo.io/learn-vuex-by-building-notes-app/</a></p>
+<p>在这篇教程中我们将通过构建一个笔记应用来学习如何在我们的 Vue 项目中使用 Vuex。我们将大概的过一遍什么是 Vuex.js，在项目中什么时候使用它，和如何构建我们的 Vue 应用。</p>
+<p>这里放一张我们项目的预览图片：<br><img src="/images/vue-notes-app/vue-notes-screenshot.png" alt="效果预览图"></p>
+<p>项目源码：<a href="https://github.com/lichenbuliren/vuex-notes-app" target="_blank" rel="external">vuex-notes-app</a>；有需要的同学可以直接下载源码查看。</p>
+<h1 id="主要知识点"><a href="#主要知识点" class="headerlink" title="主要知识点"></a>主要知识点</h1><ul>
+<li><a href="https://github.com/vuejs/vuex/blob/master/docs/zh-cn/intro.md" target="_blank" rel="external">Vuex</a> 状态管理机制的使用</li>
+<li><a href="https://github.com/vuejs/vue/" target="_blank" rel="external">Vue.js</a> 的基础 api</li>
+<li><a href="https://github.com/vuejs/vue-cli" target="_blank" rel="external">Vue-cli</a> 脚手架的安装及使用</li>
+<li><a href="https://github.com/vuejs/vue-router" target="_blank" rel="external">vur-router</a> 的使用</li>
+<li><a href="http://es6.ruanyifeng.com/" target="_blank" rel="external">ES6</a> 的语法，这里推荐看下阮一峰的入门教程</li>
+</ul>
+<h1 id="Vuex-概述"><a href="#Vuex-概述" class="headerlink" title="Vuex 概述"></a>Vuex 概述</h1><p>在我们迫不及待的开始项目之前，我们最好先花几分钟来了解下 <a href="https://github.com/vuejs/vuex/blob/master/docs/zh-cn/intro.md" target="_blank" rel="external">Vuex</a>  的核心概念。</p>
+<p>Vuex 是一个专门为 Vue.js 应用所设计的集中式状态管理架构。它借鉴了 Flux 和 Redux 的设计思想，但简化了概念，并且采用了一种为能更好发挥 Vue.js 数据响应机制而专门设计的实现。</p>
+<p><code>state</code> 这样概念初次接触的时候可能会感觉到有点模糊，简单来说就是将 <code>state</code> 看成我们项目中使用的数据的集合。然后，Vuex 使得 组件本地状态（component local state）和 应用层级状态(application state) 有了一定的差异</p>
+<ul>
+<li>component local state: 该状态表示仅仅在组件内部使用的状态，有点类似通过配置选项传入 Vue 组件内部的意思。</li>
+<li>application level state: 应用层级状态，表示同时被多个组件共享的状态层级。</li>
+</ul>
+<p>假设有这样一个场景：我们有一个父组件，同时包含两个子组件。父组件可以很容易的通过使用 <code>props</code> 属性来向子组件传递数据。</p>
+<p>但是问题来了，当我们的两个子组件如何和对方互相通信的？ 或者子组件如何传递数据给他父组件的？在我们的项目很小的时候，这个两个问题都不会太难，因为我们可以通过事件派发和监听来完成父组件和子组件的通信。</p>
+<p>然而，随着我们项目的增长：</p>
+<ul>
+<li>保持对所有的事件追踪将变得很困难。到底哪个事件是哪个组件派发的，哪个组件该监听哪个事件？</li>
+<li>项目逻辑分散在各个组件当中，很容易导致逻辑的混乱，不利于我们项目的维护。</li>
+<li>父组件将变得和子组件耦合越来越严重，因为它需要明确的派发和监听子组件的某些事件。</li>
+</ul>
+<p>这就是 Vuex 用来解决的问题。 Vuex 的四个核心概念分别是：</p>
+<ul>
+<li>The state tree：Vuex 使用单一状态树，用一个对象就包含了全部的应用层级状态。至此它便作为一个『唯一数据源(SSOT)』而存在。这也意味着，每个应用将仅仅包含一个 store 实例。单状态树让我们能够直接地定位任一特定的状态片段，在调试的过程中也能轻易地取得整个当前应用状态的快照。</li>
+<li>Getters:  用来从 store 获取 Vue 组件数据。</li>
+<li>Mutators: 事件处理器用来驱动状态的变化。</li>
+<li>Actions: 可以给组件使用的函数，以此用来驱动事件处理器 mutations</li>
+</ul>
+<p>如何你暂时还不太理解这个四个概念，不用着急，我们将在后面的项目实战中详细的解释。</p>
+<p>下面这张图详细的解释了 Vuex 应用中数据的流向（Vuex 官方图）</p>
+<p><img src="/images/vue-notes-app/vuex.png" alt="Vuex 数据流图"></p>
+<p>简单解释下：</p>
+<p>Vuex 规定，属于应用层级的状态只能通过 Mutation 中的方法来修改，而派发 Mutation 中的事件只能通过 action。</p>
+<p>从左到又，从组件出发，组件中调用 action，在 action 这一层级我们可以和后台数据交互，比如获取初始化的数据源，或者中间数据的过滤等。然后在 action 中去派发 Mutation。Mutation 去触发状态的改变，状态的改变，将触发视图的更新。</p>
+<p><strong>注意事项</strong></p>
+<ul>
+<li>数据流都是单向的</li>
+<li>组件能够调用 action</li>
+<li>action 用来派发 Mutation</li>
+<li>只有 mutation 可以改变状态</li>
+<li>store 是响应式的，无论 state 什么时候更新，组件都将同步更新</li>
+</ul>
+<h2 id="环境安装"><a href="#环境安装" class="headerlink" title="环境安装"></a>环境安装</h2><p>这个应用将使用 <a href="https://webpack.github.io/" target="_blank" rel="external">webpack</a> 来做模块打包，处理和热重启。使用 Vue 官方提供的脚手架 <a href="https://github.com/vuejs/vue-cli" target="_blank" rel="external">vue-cli</a>。</p>
+<h3 id="安装-vue-cli"><a href="#安装-vue-cli" class="headerlink" title="安装 vue-cli"></a>安装 vue-cli</h3><pre><code class="javascript">npm install -g vue-cli
+</code></pre>
+<p>*Node.js &gt;= 4.x,5.x最好</p>
+<h3 id="初始化应用"><a href="#初始化应用" class="headerlink" title="初始化应用"></a>初始化应用</h3><pre><code class="javascript">vue init webpack vue-notes-app
+cd vue-notes-app
+npm install // 安装依赖包
+npm run dev // 启动服务
+</code></pre>
+<p>初始化一个项目名为<code>vue-notes-app</code>的应用，并选择使用 webpack 打包方式。在命令行中按照提示选择初始化配置项。其中在选择 JSLint 校验的时候，推荐选择 <a href="https://github.com/airbnb/javascript" target="_blank" rel="external">AirBNB</a> 规范。</p>
+<p>使用你最喜欢的编辑器打开我们刚刚新建的项目，项目的结构大概如下图：</p>
+<p><img src="/images/vue-notes-app/project.png" alt="项目结构图"></p>
+<ul>
+<li>components/ 文件夹用来存放我们的 Vue 组件</li>
+<li>vuex/ 文件夹存放的是和 Vuex store 相关的东西（state object，actions，mutators)</li>
+<li>build/ 文件是 webpack 的打包编译配置文件</li>
+<li>config/ 文件夹存放的是一些配置项，比如我们服务器访问的端口配置等</li>
+<li>dist/ 该文件夹一开始是不存在，在我们的项目经过 build 之后才会产出</li>
+<li>App.vue 根组件，所有的子组件都将在这里被引用</li>
+<li>index.html 整个项目的入口文件，将会引用我们的根组件 App.vue</li>
+<li>main.js 入口文件的 js 逻辑，在 webpack 打包之后将被注入到 index.html 中</li>
+</ul>
+<h2 id="功能模块"><a href="#功能模块" class="headerlink" title="功能模块"></a>功能模块</h2><ul>
+<li>新增笔记，新增一篇笔记，编辑区显示空的笔记内容</li>
+<li>删除笔记，删除一篇笔记之后，编辑区域显示当前笔记类别的第一项</li>
+<li>笔记列表切换，分为全部笔记和收藏笔记两种，在切换之后，编辑区域显示当前列表的第一条笔记</li>
+<li>收藏笔记，给当前激活的笔记打上收藏的标签</li>
+</ul>
+<h2 id="项目组件划分"><a href="#项目组件划分" class="headerlink" title="项目组件划分"></a>项目组件划分</h2><p>在这个项目中，我们将总共使用四个组件：根组件 App.vue，操作栏组件 Toolbar.vue，别表组件 NotesList.vue，笔记编辑组件 Editor.vue。</p>
+<p><img src="/images/vue-notes-app/components.png" alt="组件划分图"></p>
+<h3 id="创建-Vuex-Store"><a href="#创建-Vuex-Store" class="headerlink" title="创建 Vuex Store"></a>创建 Vuex Store</h3><p>按照上面我们列出来的功能模块，我们在 Vuex/ 下面建立一个 store.js 文件</p>
+<pre><code class="javascript">import Vue from &#39;vue&#39;;
+import Vuex from &#39;vuex&#39;;
+
+Vue.use(Vuex);
+
+// 需要维护的状态
+const state = {
+  notes: [],
+  activeNote: {},
+  show: &#39;&#39;
+};
+
+const mutations = {
+  // 初始化 state
+  INIT_STORE(state, data) {
+    state.notes = data.notes,
+    state.show = data.show;
+    state.activeNote = data.activeNote;
+  },
+  // 新增笔记
+  NEW_NOTE(state) {
+    var newNote = {
+      id: +new Date(),
+      title: &#39;&#39;,
+      content: &#39;&#39;,
+      favorite: false
+    };
+    state.notes.push(newNote);
+    state.activeNote = newNote;
+  },
+  // 修改笔记
+  EDIT_NOTE(state, note) {
+    state.activeNote = note;
+    // 修改原始数据
+    for (var i = 0; i &lt; state.notes.length; i++) {
+      if(state.notes[i].id === note.id){
+        state.notes[i] = note;
+        break;
+      }
+    };
+  },
+  // 删除笔记
+  DELETE_NOTE(state) {
+    state.notes.$remove(state.activeNote);
+    state.activeNote = state.notes[0] || {};
+  },
+  // 切换笔记的收藏与取消收藏
+  TOGGLE_FAVORITE(state) {
+    state.activeNote.favorite = !state.activeNote.favorite;
+  },
+  // 切换显示数据列表类型：全部 or 收藏
+  SET_SHOW_ALL(state, show){
+    state.show = show;
+    // 切换数据展示，需要同步更新 activeNote
+    if(show === &#39;favorite&#39;){
+      state.activeNote = state.notes.filter(note =&gt; note.favorite)[0] || {};
+    }else{
+      state.activeNote = state.notes[0] || {};
+    }
+  },
+  // 设置当前激活的笔记
+  SET_ACTIVE_NOTE(state, note) {
+    state.activeNote = note;
+  }
+};
+
+export default new Vuex.Store({
+  state,
+  mutations
+});
+</code></pre>
+<h3 id="创建-Vuex-Actions"><a href="#创建-Vuex-Actions" class="headerlink" title="创建 Vuex Actions"></a>创建 Vuex Actions</h3><p>在 Vuex/ 下面建立一个 action.js，用来给组件使用的函数</p>
+<pre><code class="javascript">function makeAction(type) {
+  return ({ dispatch }, ...args) =&gt; dispatch(type, ...args);
+};
+
+const initNote = {
+  id: +new Date(),
+  title: &#39;我的笔记&#39;,
+  content: &#39;第一篇笔记内容&#39;,
+  favorite: false
+};
+
+// 模拟初始化数据
+const initData = {
+  show: &#39;all&#39;,
+  notes: [initNote],
+  activeNote: initNote
+};
+
+export const initStore = ({ dispatch }) =&gt; {
+  dispatch(&#39;INIT_STORE&#39;, initData);
+};
+// 更新当前activeNote对象
+export const updateActiveNote = makeAction(&#39;SET_ACTIVE_NOTE&#39;);
+
+// 添加一个note对象
+export const newNote = makeAction(&#39;NEW_NOTE&#39;);
+
+// 删除一个note对象
+export const deleteNote = makeAction(&#39;DELETE_NOTE&#39;);
+export const toggleFavorite = makeAction(&#39;TOGGLE_FAVORITE&#39;);
+export const editNote = makeAction(&#39;EDIT_NOTE&#39;);
+
+// 更新列表展示
+export const updateShow = makeAction(&#39;SET_SHOW_ALL&#39;);
+</code></pre>
+<h3 id="创建-Vuex-Getters"><a href="#创建-Vuex-Getters" class="headerlink" title="创建 Vuex Getters"></a>创建 Vuex Getters</h3><p>在 vuex/ 下面建立一个 getter.js 文件，用来从 store 获取数据</p>
+<pre><code class="javascript">// 获取 noteList,这里将会根据 state.show 的状态做数据过滤
+export const filteredNotes = (state) =&gt; {
+  if(state.show === &#39;all&#39;){
+    return state.notes || {};
+  }else if(state.show === &#39;favorite&#39;){
+    return state.notes.filter(note =&gt; note.favorite) || {};
+  }
+};
+
+
+// 获取列表展示状态 ： all or favorite
+export const show = (state) =&gt; {
+  return state.show;
+};
+
+// 获取当前激活 note
+export const activeNote = (state) =&gt; {
+  return state.activeNote;
+};
+</code></pre>
+<p>以上就是我们 Vuex 的所有逻辑了，在定下了我们需要完成的功能之后，接下来就是只需要在组件中去调用 action 来实现对应的功能了。</p>
+<h3 id="路由配置"><a href="#路由配置" class="headerlink" title="路由配置"></a>路由配置</h3><p>在这里我们将使用 vue-router 来做路由，引用 bootstrap 样式。</p>
+<p><strong>index.html</strong></p>
+<pre><code class="html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;meta charset=&quot;utf-8&quot;&gt;
+    &lt;title&gt;vuex-notes-app&lt;/title&gt;
+    &lt;link rel=&quot;stylesheet&quot; href=&quot;https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css&quot;&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id=&quot;app&quot;&gt;
+      &lt;router-view&gt;&lt;/router-view&gt;
+    &lt;/div&gt;
+    &lt;!-- built files will be auto injected --&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>所有的入口逻辑我们都将在 main.js 中编写</p>
+<p><strong>main.js</strong></p>
+<pre><code class="javascript">import Vue from &#39;vue&#39;;
+import App from &#39;./App&#39;;
+
+import VueRouter from &#39;vue-router&#39;;
+import VueResource from &#39;vue-resource&#39;;
+
+// 路由模块和HTTP模块
+Vue.use(VueResource);
+Vue.use(VueRouter);
+
+const router = new VueRouter();
+
+router.map({
+  &#39;/index&#39;: {
+    component: App
+  }
+});
+
+router.redirect({
+  &#39;*&#39;: &#39;/index&#39;
+});
+
+router.start(App, &#39;#app&#39;);
+</code></pre>
+<h3 id="根组件-App-vue"><a href="#根组件-App-vue" class="headerlink" title="根组件 App.vue"></a>根组件 App.vue</h3><pre><code class="html">&lt;template&gt;
+  &lt;div id=&quot;app&quot; class=&quot;app&quot;&gt;
+    &lt;toolbar&gt;&lt;/toolbar&gt;
+    &lt;notes-list&gt;&lt;/notes-list&gt;
+    &lt;editor&gt;&lt;/editor&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;style&gt;
+  html, #app {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    height: 100%;
+    max-height: 100%;
+    position: relative;
+  }
+&lt;/style&gt;
+
+&lt;script&gt;
+  import Toolbar from &#39;./components/Toolbar&#39;;
+  import NotesList from &#39;./components/NotesList&#39;;
+  import Editor from &#39;./components/Editor&#39;;
+  import store from &#39;./vuex/store&#39;;
+  import { initStore } from &#39;./vuex/actions&#39;;
+
+  export default {
+    components: {
+      Toolbar,
+      NotesList,
+      Editor
+    },
+    store,
+    vuex: {
+      actions: {
+        initStore
+      }
+    },
+    ready() {
+      this.initStore()
+    }
+  }
+&lt;/script&gt;
+</code></pre>
+<p>在根组件中引用了三个子组件：Toolbar.vue, NotesList.vue, Editor.vue。</p>
+<p>注意：我们在配置里面加入了 <code>vuex</code> 这么一个选项，这里用来将我们 action 里面定义的方法给暴露出来，我们在根组件中只做了一件事情，那就是初始化模拟数据，因此我们在组件生命周期的 ready 阶段调用了 actions 里面的 initStore 来初始化我们的 store 里面的 state</p>
+<h3 id="Toolbar-vue"><a href="#Toolbar-vue" class="headerlink" title="Toolbar.vue"></a>Toolbar.vue</h3><pre><code class="html">&lt;template&gt;
+  &lt;div id=&quot;toolbar&quot;&gt;
+    &lt;i class=&quot;glyphicon logo&quot;&gt;&lt;img src=&quot;../assets/logo.png&quot; width=&quot;30&quot; height=&quot;30&quot;&gt;&lt;/i&gt;
+    &lt;i @click=&quot;newNote&quot; class=&quot;glyphicon glyphicon-plus&quot;&gt;&lt;/i&gt;
+    &lt;i @click=&quot;toggleFavorite&quot; class=&quot;glyphicon glyphicon-star&quot; :class=&quot;{starred: activeNote.favorite}&quot;&gt;&lt;/i&gt;
+    &lt;i @click=&quot;deleteNote&quot; class=&quot;glyphicon glyphicon-remove&quot;&gt;&lt;/i&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import { newNote, deleteNote, toggleFavorite } from &#39;../vuex/actions&#39;;
+import { activeNote } from &#39;../vuex/getters&#39;;
+
+export default {
+  vuex: {
+    getters: {
+      activeNote
+    },
+    actions: {
+      newNote,
+      deleteNote,
+      toggleFavorite
+    }
+  }
+}
+&lt;/script&gt;
+
+&lt;style lang=&quot;scss&quot; scoped&gt;
+  #toolbar{
+    float: left;
+    width: 80px;
+    height: 100%;
+    background-color: #30414D;
+    color: #767676;
+    padding: 35px 25px 25px 25px;
+
+    .starred {
+      color: #F7AE4F;
+    }
+
+    i{
+      font-size: 30px;
+      margin-bottom: 35px;
+      cursor: pointer;
+      opacity: 0.8;
+      transition: opacity 0.5s ease;
+
+      &amp;:hover{
+        opacity: 1;
+      }
+    }
+  }
+&lt;/style&gt;
+</code></pre>
+<p>在这里，我们用到了 Vuex 的一个案例就是我们需要知道当前的激活的笔记是否是收藏类别的，如果是，我们需要高亮收藏按钮，那么如何知道呢？那就是通过 vuex 里面的 getters 获取当前激活的笔记对象，判断它的 favorite 是否为 true。</p>
+<p>始终牢记一个概念，vuex 中数据是单向的，只能从 store 获取，而我们这个例子中的 activeNote 也是始终都在 store.js 中维护的，这样子就可以给其他组件公用了</p>
+<pre><code class="javascript">
+// 需要维护的状态
+const state = {
+  notes: [],
+  activeNote: {},
+  show: &#39;&#39;
+};
+</code></pre>
+<h3 id="NotesList-vue"><a href="#NotesList-vue" class="headerlink" title="NotesList.vue"></a>NotesList.vue</h3><pre><code class="html">&lt;template&gt;
+  &lt;div id=&quot;notes-list&quot;&gt;
+    &lt;div id=&quot;list-header&quot;&gt;
+      &lt;h2&gt;Notes | heavenru.com&lt;/h2&gt;
+      &lt;div class=&quot;btn-group btn-group-justified&quot; role=&quot;group&quot;&gt;
+        &lt;!-- all --&gt;
+        &lt;div class=&quot;btn-group&quot; role=&quot;group&quot;&gt;
+          &lt;button type=&quot;button&quot; class=&quot;btn btn-default&quot;
+            @click=&quot;toggleShow(&#39;all&#39;)&quot;
+            :class=&quot;{active: show === &#39;all&#39;}&quot;&gt;All Notes&lt;/button&gt;
+        &lt;/div&gt;
+
+        &lt;!-- favorites --&gt;
+        &lt;div class=&quot;btn-group&quot; role=&quot;group&quot;&gt;
+          &lt;button type=&quot;button&quot; class=&quot;btn btn-default&quot;
+            @click=&quot;toggleShow(&#39;favorite&#39;)&quot;
+            :class=&quot;{active: show === &#39;favorite&#39;}&quot;&gt;Favorites&lt;/button&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+
+    &lt;!-- 渲染笔记列表 --&gt;
+    &lt;div class=&quot;container&quot;&gt;
+      &lt;div class=&quot;list-group&quot;&gt;
+        &lt;a v-for=&quot;note in filteredNotes&quot;
+         class=&quot;list-group-item&quot; href=&quot;#&quot;
+         :class=&quot;{active: activeNote === note}&quot;
+         @click=&quot;updateActiveNote(note)&quot;&gt;
+          &lt;h4 class=&quot;list-group-item-heading&quot;&gt;
+            {{note.title.trim().substring(0,30)}}
+          &lt;/h4&gt;
+        &lt;/a&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+  import { updateActiveNote, updateShow } from &#39;../vuex/actions&#39;;
+  import { show, filteredNotes, activeNote } from &#39;../vuex/getters&#39;;
+
+  export default {
+    vuex: {
+      getters: {
+        show,
+        filteredNotes,
+        activeNote
+      },
+      actions: {
+        updateActiveNote,
+        updateShow
+      }
+    },
+    methods: {
+      toggleShow(show) {
+        this.updateShow(show);
+      }
+    }
+  }
+&lt;/script&gt;
+</code></pre>
+<p>笔记列表组件，主要有三个操作</p>
+<ul>
+<li>渲染笔记</li>
+<li>切换渲染笔记</li>
+<li>点击列表 title，切换 activeNote</li>
+</ul>
+<p>我们通过 getters 中的 filteredNotes 方法获取笔记列表</p>
+<pre><code class="javascript">// 获取 noteList,这里将会根据 state.show 的状态做数据过滤
+export const filteredNotes = (state) =&gt; {
+  if(state.show === &#39;all&#39;){
+    return state.notes || {};
+  }else if(state.show === &#39;favorite&#39;){
+    return state.notes.filter(note =&gt; note.favorite) || {};
+  }
+};
+</code></pre>
+<p>可以看到，我们获取的列表是依赖于 state.show 这个状态的。而我们的切换列表操作恰好就是调用 actions 里面的方法来更新 state.show ，这样一来，实现了数据列表的动态刷新，而且我们对树的操作都是通过调用 actions 的方法来实现的。</p>
+<p>我们再看，在切换列表的时候，我们还需要动态的更新 activeNote 。 看看我们在 store.js 中是如何做的：</p>
+<pre><code class="javascript">// 切换显示数据列表类型：全部 or 收藏
+SET_SHOW_ALL(state, show){
+  state.show = show;
+  // 切换数据展示，需要同步更新 activeNote
+  if(show === &#39;favorite&#39;){
+    state.activeNote = state.notes.filter(note =&gt; note.favorite)[0] || {};
+  }else{
+    state.activeNote = state.notes[0] || {};
+  }
+}
+</code></pre>
+<p>触发这些操作的是我们给两个按钮分别绑定了我们自定义的函数，通过给函数传入不同的参数，然后调用 actions 里面的方法，来实现对数据的过滤，更新。</p>
+<h3 id="Editor-vue"><a href="#Editor-vue" class="headerlink" title="Editor.vue"></a>Editor.vue</h3><pre><code class="html">&lt;template&gt;
+  &lt;div id=&quot;note-editor&quot;&gt;
+    &lt;div class=&quot;form-group&quot;&gt;
+      &lt;input type=&quot;text&quot; name=&quot;title&quot;
+        class=&quot;title form-control&quot;
+        placeholder=&quot;请输入标题&quot;
+        @input=&quot;updateNote&quot;
+        v-model=&quot;currentNote.title&quot;&gt;
+      &lt;textarea
+        v-model=&quot;currentNote.content&quot; name=&quot;content&quot;
+        class=&quot;form-control&quot; row=&quot;3&quot; placeholder=&quot;请输入正文&quot;
+        @input=&quot;updateNote&quot;&gt;&lt;/textarea&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+  import { editNote } from &#39;../vuex/actions&#39;;
+  import { activeNote } from &#39;../vuex/getters&#39;;
+
+  export default {
+    vuex: {
+      getters: {
+        activeNote
+      },
+      actions: {
+        editNote
+      }
+    },
+    computed: {
+      // 通过计算属性得到的一个对象，这样子我们就能愉快的使用 v-model 了
+      currentNote: activeNote
+    },
+    methods: {
+      // 为什么这么做？ 因为在严格模式中不允许直接在模板层面去修改 state 中的值
+      updateNote() {
+        this.editNote(this.currentNote);
+      }
+    }
+  }
+&lt;/script&gt;
+</code></pre>
+<p>在 Editor.vue 组件中，我们需要能够实时的更新当前的 activeNote 组件和列表中对应的我们正在修改的笔记对象的内容。</p>
+<p>由于我们前面提到过，在组件中是不允许直接修改 store.js在里面的状态值的，所以在这里的时候，我们通过一个计算属性，将 store 里面的状态值赋值给一个对象，然后在自定义的 updateNotes() 方法中，去调用 action,同时传入 currentNote 对象。</p>
+<p>在 store.js 中，我们是这么做的，找到对应的 id 的对象，重新赋值，因为前面提到过，我们的数据是响应式的，在这里进行了改变，对应的视图也将刷新改变，这样一来就实现了实时编辑，实时渲染的功能了。</p>
+<pre><code class="javascript">// 修改笔记
+EDIT_NOTE(state, note) {
+  state.activeNote = note;
+  // 修改原始数据
+  for (var i = 0; i &lt; state.notes.length; i++) {
+    if(state.notes[i].id === note.id){
+      state.notes[i] = note;
+      break;
+    }
+  };
+},
+</code></pre>
+<h2 id="Q-amp-A"><a href="#Q-amp-A" class="headerlink" title="Q&amp;A"></a>Q&amp;A</h2><p>在这个项目中，我们并没有引入 vue-resource 插件，只是自己模拟了部分的数据，有兴趣的同学可以自己去试试。</p>
+<p>由于我们的例子相对简单，没有涉及到很深入的东西，更深层次的研究需要大家花更多的时间去实践了。</p>
+<p>最后，再说一句，在 action 里面，我们其实可以做的还有更多，比如根据 id 动态的异步获取笔记内容等等，这些有兴趣的同学可以自己去尝试，一点点的丰富这个例子。</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;前言：在最近学习 Vue.js 的时候，看到国外一篇讲述了如何使用 Vue.js 和 Vuex 来构建一个简单笔记的单页应用的文章。感觉收获挺多，自己在它的例子的基础上进行了一些优化和自定义功能，在这里和大家分享下学习心得。&lt;br&gt;
+    
+    </summary>
+    
+      <category term="JavaScript" scheme="http://heavenru.com/blog/categories/JavaScript/"/>
+    
+      <category term="Vue.js" scheme="http://heavenru.com/blog/categories/JavaScript/Vue-js/"/>
+    
+    
+      <category term="vue" scheme="http://heavenru.com/blog/tags/vue/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>文件异步上传-下篇</title>
+    <link href="http://heavenru.com/blog/2016/05/17/%E6%96%87%E4%BB%B6%E5%BC%82%E6%AD%A5%E4%B8%8A%E4%BC%A0-%E4%B8%8B%E7%AF%87/"/>
+    <id>http://heavenru.com/blog/2016/05/17/文件异步上传-下篇/</id>
+    <published>2016-05-17T06:43:07.000Z</published>
+    <updated>2017-09-20T10:26:41.000Z</updated>
+    
+    <content type="html"><![CDATA[<h3 id="写在前面"><a href="#写在前面" class="headerlink" title="写在前面"></a>写在前面</h3><p>上一篇主要讲了文件异步上传的前端相关的东西，在这篇文章里面，我们主要讲解写使用<code>koa</code>框架来搭建一个简单的处理文件上传的<code>node</code>后台项目。<br><a id="more"></a></p>
+<p>在这里我不会仔细的讲解每个模块中间件的具体使用方法，文章中提到的模块我都会给出链接，有需要的可以自己去看官方的API学习。</p>
+<h3 id="主要功能模块"><a href="#主要功能模块" class="headerlink" title="主要功能模块"></a>主要功能模块</h3><ul>
+<li><a href="https://github.com/alexmingoia/koa-router" target="_blank" rel="external">koa-router</a> 抽取路由到单独的模块</li>
+<li><a href="https://github.com/koajs/static" target="_blank" rel="external">koa-static</a> 静态文件服务中间件模块</li>
+<li><a href="https://github.com/cojs/busboy" target="_blank" rel="external">koa-busboy</a> 文件域处理模块</li>
+</ul>
+<h3 id="主要代码"><a href="#主要代码" class="headerlink" title="主要代码"></a>主要代码</h3><h4 id="app-js"><a href="#app-js" class="headerlink" title="app.js"></a>app.js</h4><pre><code class="javascript">var koa = require(&#39;koa&#39;);
+var path = require(&#39;path&#39;);
+var routers = require(&#39;./routers&#39;);
+var bodyParser = require(&#39;koa-bodyparser&#39;);
+var logger = require(&#39;koa-logger&#39;);
+var staticServer = require(&#39;koa-static&#39;);
+
+var app = koa();
+
+// 注册中间件
+app.use(logger());
+app.use(staticServer(path.join(__dirname,&#39;public&#39;)));
+app.use(bodyParser());
+
+// 自定义路由
+routers(app);
+
+// 监听 3000 端口 
+app.listen(3000);
+
+app.on(&#39;error&#39;, function(err,ctx){
+    console.log(err);
+});
+</code></pre>
+<p>其中的 routers 为我们自己定义的路由模块，在这个模块里面，我们将配置整个项目的所有路由；</p>
+<pre><code class="javascript">// 配置静态文件目录
+app.use(staticServer(path.join(__dirname,&#39;public&#39;)));
+</code></pre>
+<p>在配置了静态文件目录之后，我们在 <code>HTML</code> 文件里面就可以像下面这样引用了</p>
+<pre><code class="html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;css/style.css&quot;&gt;
+    &lt;script type=&quot;text/javascript&quot; src=&quot;js/index.js&quot;&gt;&lt;/script&gt;
+    &lt;title&gt;HTML5 File Upload&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<h4 id="主要逻辑代码：routers-index-js"><a href="#主要逻辑代码：routers-index-js" class="headerlink" title="主要逻辑代码：routers/index.js"></a>主要逻辑代码：routers/index.js</h4><pre><code class="javascript">var router = require(&#39;koa-router&#39;)();
+var path = require(&#39;path&#39;);
+var fs = require(&#39;fs&#39;);
+var mime = require(&#39;mime&#39;);
+var render = require(&#39;../lib/render.js&#39;);
+
+// 文件上传操作
+var parse = require(&#39;co-busboy&#39;);
+
+module.exports = function(app){
+
+      // 定义路由
+    router.get(&#39;/upload&#39;,function *(next){
+        this.body = yield render(&#39;upload&#39;,{
+            title: &#39;HTML5 File Upload&#39;
+        });
+    }).post(&#39;/upload&#39;, function *(next){
+        var _this = this;
+        var parts = parse(this);
+        var part;
+
+        var count = 0;
+        console.log(&#39;start&#39;,+new Date());
+        while(part = yield parts){
+            var stream = fs.createWriteStream(path.resolve(__dirname,&#39;../public/images&#39;) + &#39;/&#39; + part.filename);
+
+            // 这里将 end 设置成 false,然后才能自定义 end 监听事件
+            part.pipe(stream,{end: false});
+
+              // 监听文件流写入完成事件，当 count == 文件个数的时候，表明文件全部上传完毕
+            part.on(&#39;end&#39;,function(){
+                count++;
+                if(count == parts.length){
+                    console.log(&#39;end&#39;,+new Date());
+                    _this.body = {
+                        &quot;status&quot; : 200
+                    }
+                }
+                console.log(&#39;uploading %s -&gt; %s&#39;, part.filename, stream.path);
+            });
+        }
+    });
+
+      // 注册路由
+    app.use(router.routes());
+}
+</code></pre>
+<p>在这里，我们主要是<code>co-busboy</code> 模块来处理文件域的操作，在拦截到文件表单之后，我们创建了一个科协的流：</p>
+<pre><code class="javascript">fs.createWriteStream(path.resolve(__dirname,&#39;../public/images&#39;) + &#39;/&#39; + part.filename);
+</code></pre>
+<p>然后通过 <code>part.pipe(stream,{end: false})</code> 方式写入文件</p>
+<h3 id="Q-amp-A"><a href="#Q-amp-A" class="headerlink" title="Q&amp;A"></a>Q&amp;A</h3><p>基本上的流程大致如此了，过程讲解的不是详细，有什么问题，可以通过下方的联系方式联系我，大家一起学习，一起进步！</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h3 id=&quot;写在前面&quot;&gt;&lt;a href=&quot;#写在前面&quot; class=&quot;headerlink&quot; title=&quot;写在前面&quot;&gt;&lt;/a&gt;写在前面&lt;/h3&gt;&lt;p&gt;上一篇主要讲了文件异步上传的前端相关的东西，在这篇文章里面，我们主要讲解写使用&lt;code&gt;koa&lt;/code&gt;框架来搭建一个简单的处理文件上传的&lt;code&gt;node&lt;/code&gt;后台项目。&lt;br&gt;
+    
+    </summary>
+    
+      <category term="JavaScript" scheme="http://heavenru.com/blog/categories/JavaScript/"/>
+    
+      <category term="nodejs" scheme="http://heavenru.com/blog/categories/JavaScript/nodejs/"/>
+    
+    
+      <category term="HTML5" scheme="http://heavenru.com/blog/tags/HTML5/"/>
+    
+      <category term="File Upload" scheme="http://heavenru.com/blog/tags/File-Upload/"/>
+    
+      <category term="ajax" scheme="http://heavenru.com/blog/tags/ajax/"/>
+    
+      <category term="nodejs" scheme="http://heavenru.com/blog/tags/nodejs/"/>
+    
+      <category term="koa" scheme="http://heavenru.com/blog/tags/koa/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>文件异步上传-上篇</title>
+    <link href="http://heavenru.com/blog/2016/05/12/%E6%96%87%E4%BB%B6%E5%BC%82%E6%AD%A5%E4%B8%8A%E4%BC%A0-%E4%B8%8A%E7%AF%87/"/>
+    <id>http://heavenru.com/blog/2016/05/12/文件异步上传-上篇/</id>
+    <published>2016-05-12T08:43:36.000Z</published>
+    <updated>2016-05-17T06:46:08.000Z</updated>
+    
+    <content type="html"><![CDATA[<h3 id="项目背景"><a href="#项目背景" class="headerlink" title="项目背景"></a>项目背景</h3><p>在这篇文章的里面和大家分享下 HTML5 的文件上传操作，后台是我用 <code>nodejs</code> 的<code>koa</code>框架搭建的一个Demo，所在在这篇文章里面，我也会顺带讲讲如何用<code>koa</code>搭建一个简单的node后台。</p>
+<h3 id="技术要点"><a href="#技术要点" class="headerlink" title="技术要点"></a>技术要点</h3><ol>
+<li><a href="https://developer.mozilla.org/zh-CN/docs/Web/API/FileReader" target="_blank" rel="external">FileReader</a> 用来实现图片预览、<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/FormData" target="_blank" rel="external">FormData</a> 用来实现文件异步上传操作</li>
+<li>koa 框架的简单使用</li>
+<li>利用 FormData 实现文件异步上传操作</li>
+</ol>
+<a id="more"></a>
+<h3 id="前端主要代码"><a href="#前端主要代码" class="headerlink" title="前端主要代码"></a>前端主要代码</h3><h4 id="图片预览"><a href="#图片预览" class="headerlink" title="图片预览"></a>图片预览</h4><p>原理：利用<code>FileReader</code>对象的<code>readAsDataURL</code>方法，我们可以得到一个图片文件的<code>base64</code>位的编码格式，然后讲得到的数据赋值给<code>img</code>对象的<code>src</code>属性，就能实现预览操作了，其中的<code>base64</code>数据通过<code>FileReader</code>的实例对象的<code>onload</code>之后得到的<code>event.target.result</code>就是我们需要的数据了。</p>
+<p>图片文佳不宜过大，不然转成<code>base64</code>之后数据量太大，前端可以做适当的约束。通过原生<code>Dom</code>的<code>files</code>属性，我们可以得到用户选择的文件列表，是一个数组形式。通过<code>file.type</code>、<code>file.size</code>分别可以得到文件类型和文件的大小。</p>
+<p><em>注意：监听<code>reader</code>的<code>load</code>事件需要在<code>reader.readAsDataURL()</code>之前</em></p>
+<p>主要代码如下：</p>
+<pre><code class="javascript">// 监听文件域的 &#39;change&#39; 事件
+$fileChooses.on(&#39;change&#39;, &#39;.input-file&#39;, function() {
+    var $this = $(this);
+    var $fileChoose = $this.closest(&#39;.file-choose&#39;);
+    var $thumb = $this.siblings(&#39;.thumb&#39;);
+
+    // HTML5 FileReader 对象
+    var reader = new FileReader();
+    var file = this.files[0];
+
+    // inject an image with the src url
+    reader.onload = function(event) {
+        $thumb.attr(&#39;src&#39;, event.target.result);
+        $fileChoose.addClass(&#39;file-choose-loaded&#39;);
+        count++;
+
+        if (count == $fileChooses.length) {
+            $submit.removeClass(&#39;disabled&#39;);
+        }
+    };
+
+    // 过滤图片文件
+    if (!file.type.match(&#39;image.*&#39;)) {
+        alert(&#39;请选择图片类型文件&#39;);
+        $submit.addClass(&#39;disabled&#39;);
+        return false;
+    }
+    // 判断文件大小，限制小于 1MB
+    if (file.size &gt; 1024 * 1024 * 1024) {
+        alert(&#39;上传文件不能大于 1MB 或者 1024kb&#39;);
+        $submit.addClass(&#39;disabled&#39;);
+        return false;
+    }
+    // 读取文件预览
+    reader.readAsDataURL(file);
+});
+</code></pre>
+<h4 id="清除图片预览"><a href="#清除图片预览" class="headerlink" title="清除图片预览"></a>清除图片预览</h4><p>看代码：</p>
+<pre><code class="javascript">// 关闭按钮
+$fileChooses.on(&#39;click&#39;, &#39;.icon-delete&#39;, function() {
+  // 清除 .loaded 类，清空 .thumb 的src
+  var $this = $(this),
+      $fileChoose = $this.closest(&#39;.file-choose&#39;),
+      $file = $this.siblings(&#39;.input-file&#39;),
+      $thumb = $this.siblings(&#39;.thumb&#39;);
+  $fileChoose.removeClass(&#39;file-choose-loaded&#39;);
+  $submit.addClass(&#39;disabled&#39;);
+  // 清除预览数据
+  $thumb.attr(&#39;src&#39;, &#39;&#39;);
+  count--;
+  // 这是可能出现兼容性问题，如果不将这里清空，
+  // 下一次选择图片如果选择相同的将无法触发 change 事件
+  $file.val(&#39;&#39;);
+});
+</code></pre>
+<h4 id="核心部分，文件上传"><a href="#核心部分，文件上传" class="headerlink" title="核心部分，文件上传"></a>核心部分，文件上传</h4><p>使用<code>FormData</code>有两种方式，一种是直接通过<code>FormData.append()</code>方法添加文件域，另外一种是直接使用现有的<code>form</code>表单当做构造参数实例化一个<code>FormData</code>对象</p>
+<pre><code class="javascript">$submit.on(&#39;click&#39;,function(){
+    // 方式1：用 formData 的形式提交
+    var formData = new FormData();
+    formData.append(&#39;uploadify1&#39;,$(&#39;.input-file&#39;)[0].files[0]);
+    formData.append(&#39;uploadify2&#39;,$(&#39;.input-file&#39;)[1].files[0]);
+
+    // 方式二：表单序列化
+    // var formData = new FormData($form[0]);
+
+    if($(this).hasClass(&#39;disabled&#39;)){
+        return false;
+    }
+
+    if(ajaxStatus) return;
+    ajaxStatus = true;
+
+
+    // 表单提交
+    $.ajax({
+        url: &#39;/upload&#39;,
+        type: &#39;POST&#39;,
+        dataType: &#39;json&#39;,
+        data: formData,
+        // 这两项必填，作为文件上传的时候
+        contentType: false,
+        processData: false
+    }).done(function(resp) {
+        if(resp.status == 200){
+            alert(&#39;上传成功&#39;);
+            console.log(&quot;success&quot;, resp);
+        }
+    }).fail(function() {
+        console.log(&quot;error&quot;);
+    }).always(function() {
+        ajaxStatus = false;
+        console.log(&quot;complete&quot;);
+    });
+});
+</code></pre>
+<p>源码地址：<a href="https://github.com/lichenbuliren/html5-file-upload" target="_blank" rel="external">https://github.com/lichenbuliren/html5-file-upload</a></p>
+<h3 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h3><p>到这里前端的基本代码都介绍完了，在下一章里面将会介绍和后端配合来实现文件的保存与请求响应操作。</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h3 id=&quot;项目背景&quot;&gt;&lt;a href=&quot;#项目背景&quot; class=&quot;headerlink&quot; title=&quot;项目背景&quot;&gt;&lt;/a&gt;项目背景&lt;/h3&gt;&lt;p&gt;在这篇文章的里面和大家分享下 HTML5 的文件上传操作，后台是我用 &lt;code&gt;nodejs&lt;/code&gt; 的&lt;code&gt;koa&lt;/code&gt;框架搭建的一个Demo，所在在这篇文章里面，我也会顺带讲讲如何用&lt;code&gt;koa&lt;/code&gt;搭建一个简单的node后台。&lt;/p&gt;
+&lt;h3 id=&quot;技术要点&quot;&gt;&lt;a href=&quot;#技术要点&quot; class=&quot;headerlink&quot; title=&quot;技术要点&quot;&gt;&lt;/a&gt;技术要点&lt;/h3&gt;&lt;ol&gt;
+&lt;li&gt;&lt;a href=&quot;https://developer.mozilla.org/zh-CN/docs/Web/API/FileReader&quot;&gt;FileReader&lt;/a&gt; 用来实现图片预览、&lt;a href=&quot;https://developer.mozilla.org/zh-CN/docs/Web/API/FormData&quot;&gt;FormData&lt;/a&gt; 用来实现文件异步上传操作&lt;/li&gt;
+&lt;li&gt;koa 框架的简单使用&lt;/li&gt;
+&lt;li&gt;利用 FormData 实现文件异步上传操作&lt;/li&gt;
+&lt;/ol&gt;
+    
+    </summary>
+    
+      <category term="JavaScript" scheme="http://heavenru.com/blog/categories/JavaScript/"/>
+    
+      <category term="nodejs" scheme="http://heavenru.com/blog/categories/JavaScript/nodejs/"/>
+    
+    
+      <category term="HTML5" scheme="http://heavenru.com/blog/tags/HTML5/"/>
+    
+      <category term="File Upload" scheme="http://heavenru.com/blog/tags/File-Upload/"/>
+    
+      <category term="ajax" scheme="http://heavenru.com/blog/tags/ajax/"/>
+    
+      <category term="nodejs" scheme="http://heavenru.com/blog/tags/nodejs/"/>
+    
+      <category term="koa" scheme="http://heavenru.com/blog/tags/koa/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>React 入门实践小结</title>
+    <link href="http://heavenru.com/blog/2015/12/04/React-%E5%85%A5%E9%97%A8%E5%AE%9E%E8%B7%B5%E5%B0%8F%E7%BB%93/"/>
+    <id>http://heavenru.com/blog/2015/12/04/React-入门实践小结/</id>
+    <published>2015-12-04T11:59:16.000Z</published>
+    <updated>2017-09-20T10:28:53.000Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="React-入门练习实践总结"><a href="#React-入门练习实践总结" class="headerlink" title="React 入门练习实践总结"></a>React 入门练习实践总结</h2><a id="more"></a>
+<h3 id="1、模板使用"><a href="#1、模板使用" class="headerlink" title="1、模板使用"></a>1、模板使用</h3><pre><code class="html">    &lt;!DOCTYPE html&gt;
+    &lt;html lang=&quot;en&quot;&gt;
+    &lt;head&gt;
+        &lt;meta charset=&quot;UTF-8&quot;&gt;
+        &lt;script src=&quot;../lib/react.js&quot;&gt;&lt;/script&gt;
+        &lt;script src=&quot;../lib/react-dom.js&quot;&gt;&lt;/script&gt;
+        &lt;script src=&quot;../lib/browser.min.js&quot;&gt;&lt;/script&gt;
+        &lt;title&gt;react-demo06&lt;/title&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        &lt;div id=&quot;example&quot;&gt;&lt;/div&gt;
+        &lt;script type=&quot;text/babel&quot;&gt;
+
+        &lt;/script&gt;
+    &lt;/body&gt;
+    &lt;/html&gt;
+</code></pre>
+<h3 id="2、JSX-语法"><a href="#2、JSX-语法" class="headerlink" title="2、JSX 语法"></a>2、JSX 语法</h3><p>遇到 <code>HTML</code> 标签（以 &lt; 开头），就用 <code>HTML</code> 规则解析；遇到代码块（以 { 开头），就用 <code>JavaScript</code> 规则解析。</p>
+<pre><code class="javascript">    var names = [&#39;Alice&#39;,&#39;Emily&#39;,&#39;Kate&#39;];
+    ReactDOM.render(
+        &lt;div&gt;
+        {
+            names.map(function(name,index){
+                return &lt;div key={index}&gt;Hello, {name}!&lt;/div&gt;
+            })
+        }
+        &lt;/div&gt;,
+        document.getElementById(&#39;example&#39;)
+    );
+</code></pre>
+<h3 id="3、自定义组件写法"><a href="#3、自定义组件写法" class="headerlink" title="3、自定义组件写法"></a>3、自定义组件写法</h3><p><code>React</code> 允许将代码封装成组件（component），然后像插入普通 HTML 标签一样，在网页中插入这个组件。React.createClass 方法就用于生成一个组件类</p>
+<pre><code class="javascript">    var HelloMessage = React.createClass({
+        render: function(){
+            return &lt;h1&gt;Hello {this.props.name}&lt;/h1&gt;
+        }
+    });
+
+    ReactDOM.render(
+        &lt;HelloMessage name=&quot;Heaven&quot; /&gt;,
+        document.getElementById(&#39;example&#39;)
+    );
+</code></pre>
+<h3 id="4、this-props-children"><a href="#4、this-props-children" class="headerlink" title="4、this.props.children"></a>4、this.props.children</h3><p><code>this.props</code> 对象的属性与组件的属性一一对应，但是有一个例外，就是 <code>this.props.children</code> 属性。它表示组件的所有子节点。</p>
+<pre><code class="javascript">    var NotesList = React.createClass({
+        render: function(){
+            return (
+                &lt;ol&gt;
+                {
+                    React.Children.map(this.props.children, function(child,index){
+                        return &lt;li key={index}&gt;{child}&lt;/li&gt;;
+                    })
+                }
+                &lt;/ol&gt;
+            );
+        }
+    });
+
+    ReactDOM.render(
+        &lt;NotesList&gt;
+            &lt;span&gt;hello&lt;/span&gt;
+            &lt;span&gt;world&lt;/span&gt;
+        &lt;/NotesList&gt;,
+        document.getElementById(&#39;example&#39;)
+    );
+</code></pre>
+<h3 id="5、PropTypes"><a href="#5、PropTypes" class="headerlink" title="5、PropTypes"></a>5、PropTypes</h3><p>组件的属性可以接受任意值，字符串、对象、函数等等都可以。有时，我们需要一种机制，验证别人使用组件时，提供的参数是否符合要求。组件类的 PropTypes 属性，就是用来验证组件实例的属性是否符合要求</p>
+<pre><code class="javascript">    var MyTitle = React.createClass({
+        // 设置默认属性
+        getDefaultProps: function(){
+            return {
+                title: &#39;Hello world&#39;
+            };
+        },
+        propTypes:{
+            title: React.PropTypes.string.isRequired
+        },
+        render: function(){
+            return &lt;h1&gt;{this.props.title}&lt;/h1&gt;
+        }
+    });
+
+    // var data = 124; 用数子会有报错，title属性为必须的且是string类型
+    var data = &#39;hello world&#39;;
+    ReactDOM.render(
+        &lt;MyTitle/&gt;,
+        document.getElementById(&#39;example&#39;)
+    );
+</code></pre>
+<h3 id="6、获取真实的-DOM-节点"><a href="#6、获取真实的-DOM-节点" class="headerlink" title="6、获取真实的 DOM 节点"></a>6、获取真实的 DOM 节点</h3><p>组件并不是真实的 DOM 节点，而是存在于内存之中的一种数据结构，叫做虚拟 DOM （virtual DOM）。只有当它插入文档以后，才会变成真实的 DOM 。根据 React 的设计，所有的 DOM 变动，都先在虚拟 DOM 上发生，然后再将实际发生变动的部分，反映在真实 DOM上，这种算法叫做 DOM diff ，它可以极大提高网页的性能表现。但是，有时需要从组件获取真实 DOM 的节点，这时就要用到 ref 属性</p>
+<pre><code class="javascript">    var MyComponent = React.createClass({
+        handleClick: function(){
+            this.refs.myTextInput.focus();
+        },
+        render: function() {
+            return (
+                &lt;div&gt;
+                    &lt;input type=&quot;text&quot; ref=&quot;myTextInput&quot;/&gt;
+                    &lt;input type=&quot;button&quot; value=&quot;Focus the text input&quot; onClick={this.handleClick}/&gt;
+                &lt;/div&gt;
+            );
+        }
+    });
+
+    ReactDOM.render(
+        &lt;MyComponent/&gt;,
+        document.getElementById(&#39;example&#39;)
+    );
+</code></pre>
+<p>上面代码中，组件 MyComponent 的子节点有一个文本输入框，用于获取用户的输入。这时就必须获取真实的 DOM 节点，虚拟 DOM 是拿不到用户输入的。为了做到这一点，文本输入框必须有一个 ref 属性，然后 this.refs.[refName] 就会返回这个真实的 DOM 节点。<br>需要注意的是，由于 this.refs.[refName] 属性获取的是真实 DOM ，所以必须等到虚拟 DOM 插入文档以后，才能使用这个属性，否则会报错。上面代码中，通过为组件指定 Click 事件的回调函数，确保了只有等到真实 DOM 发生 Click 事件之后，才会读取 this.refs.[refName] 属性。</p>
+<h3 id="7、this-state"><a href="#7、this-state" class="headerlink" title="7、this.state"></a>7、this.state</h3><p>组件免不了要与用户互动，React 的一大创新，就是将组件看成是一个状态机，一开始有一个初始状态，然后用户互动，导致状态变化，从而触发重新渲染 UI。</p>
+<pre><code class="javascript">    var LikeButton = React.createClass({
+        getInitialState: function(){
+            return {liked: false};
+        },
+        handleClick: function(event){
+            this.setState({liked: !this.state.liked});
+        },
+        render: function() {
+            var text = this.state.liked ? &#39;like&#39;: &#39;haven\&#39;t liked&#39;;
+            return (
+                &lt;p onClick={this.handleClick}&gt;
+                You {text} this. Click to toggle.
+                &lt;/p&gt;
+            );
+        }
+    });
+
+    ReactDOM.render(
+        &lt;LikeButton /&gt;,
+        document.getElementById(&#39;example&#39;)
+    );
+</code></pre>
+<p>上面代码是一个 LikeButton 组件，它的 getInitialState 方法用于定义初始状态，也就是一个对象，这个对象可以通过 this.state 属性读取。当用户点击组件，导致状态变化，this.setState 方法就修改状态值，每次修改以后，自动调用 this.render 方法，再次渲染组件。<br>由于 this.props 和 this.state 都用于描述组件的特性，可能会产生混淆。一个简单的区分方法是，this.props 表示那些一旦定义，就不再改变的特性，而 this.state 是会随着用户互动而产生变化的特性。</p>
+<h3 id="8、表单"><a href="#8、表单" class="headerlink" title="8、表单"></a>8、表单</h3><p>用户在表单填入的内容，属于用户跟组件的互动，所以不能用 this.props 读取</p>
+<pre><code class="javascript">    var Input = React.createClass({
+        getInitialState: function(){
+            return {value: &#39;Hello!&#39;};
+        },
+        handleChange: function(event){
+            this.setState({value: event.target.value});
+        },
+        render: function() {
+            var value = this.state.value;
+            return (
+                &lt;div&gt;
+                    &lt;input type=&quot;text&quot; value={value} onChange={this.handleChange}/&gt;
+                    &lt;p&gt;{value}&lt;/p&gt;
+                &lt;/div&gt;
+            );
+        }
+    });
+
+    ReactDOM.render(&lt;Input /&gt;,document.getElementById(&#39;example&#39;));
+</code></pre>
+<p>上面代码中，文本输入框的值，不能用 this.props.value 读取，而要定义一个 onChange 事件的回调函数，通过 event.target.value 读取用户输入的值。textarea 元素、select元素、radio元素都属于这种情况。</p>
+<h3 id="9、组件的生命周期"><a href="#9、组件的生命周期" class="headerlink" title="9、组件的生命周期"></a>9、组件的生命周期</h3><p>组件的生命周期分成三个状态：</p>
+<ul>
+<li>Mounting: 已插入真实 DOM</li>
+<li>Updating：正在被重新渲染</li>
+<li>Unmounting：已移除真实 DOM</li>
+</ul>
+<p>React 为每个状态都提供了两种处理函数，will 函数在进入状态之前调用，did 函数在进入状态之后调用，三种状态共计五种处理函数。</p>
+<ul>
+<li>componentWillMount()</li>
+<li>componentDidMount()</li>
+<li>componentWillUpdate(object nextProps, object nextState)</li>
+<li>componentDidUpdate(object prevProps, object prevState)</li>
+<li>componentWillUnmount()</li>
+</ul>
+<p>此外，React 还提供两种特殊状态的处理函数。</p>
+<ul>
+<li>componentWillReceiveProps(object nextProps)：已加载组件收到新的参数时调用</li>
+<li>shouldComponentUpdate(object nextProps, object nextState)：组件判断是否重新渲染时调用</li>
+</ul>
+<pre><code class="javascript">    var Hello = React.createClass({
+        getInitialState: function(){
+            return {
+                opacity: 1.0,
+                direction: true
+            }
+        },
+        componentDidMount: function(){
+            this.timer = setInterval(function(){
+                var opacity = this.state.opacity;
+                if(this.state.direction){
+                    opacity -= 0.02;
+                }else{
+                    opacity += 0.02;
+                }
+
+                if(opacity &lt; 0){
+                    this.state.direction = false;
+                }else if(opacity &gt;= 1.0){
+                    this.state.direction = true;
+                }
+
+                this.setState({
+                    opacity: opacity
+                });
+            }.bind(this),100);
+        },
+        render: function() {
+            return (
+                &lt;div style={{opacity: this.state.opacity}}&gt;
+                    Hello {this.props.name}
+                &lt;/div&gt;
+            );
+        }
+    });
+
+    ReactDOM.render(
+        &lt;Hello name=&quot;world&quot;/&gt;,
+        document.getElementById(&#39;example&#39;)
+    );
+</code></pre>
+<p>上面代码在 Hello 组件加载以后，通过 componentDidMount 方法设置一个定时器，每隔 100 毫秒，就重新设置组件的透明度，从而引发重新渲染。同时设置了一个方向变量来决定 opacity 是增加还是减少。</p>
+<p>另外，组件的 <code>style</code> 属性的设置方式也值得注意，不能写成</p>
+<pre><code class="css">    style=&quot;opacity: this.state.opacity&quot;
+</code></pre>
+<p>而要写成</p>
+<pre><code class="javascript">    style={{opacity: this.state.opacity}}
+</code></pre>
+<p>这是因为 <a href="https://facebook.github.io/react/tips/inline-styles.html" target="_blank" rel="external">React 组件样式</a>  是一个对象，所以第一重大括号表示这是 JavaScript 语法，第二重大括号表示样式对象。</p>
+<h3 id="10、Ajax"><a href="#10、Ajax" class="headerlink" title="10、Ajax"></a>10、Ajax</h3><p>组件的数据来源，通常是通过 Ajax 请求从服务器获取，可以使用前面提到的 <code>componentDidMount</code>  方法设置 <code>Ajax</code> 请求，等到请求成功，再用 <code>this.setState</code> 方法重新渲染 UI。</p>
+<pre><code class="javascript">    var UserGist = React.createClass({
+        getInitialState: function(){
+            return {
+                username: &#39;&#39;,
+                lastGistUrl: &#39;&#39;
+            };
+        },
+
+        componentDidMount: function(){
+            $.get(this.props.source, function(result){
+                var lastGist = result[0];
+                if(this.isMounted()){
+                    this.setState({
+                        username: lastGist.owner.login,
+                        lastGistUrl: lastGist.html_url
+                    });
+                }
+            }.bind(this));
+        },
+
+        render: function() {
+            return (
+                &lt;div&gt;
+                   {this.state.username} last gist is
+                   &lt;a href={this.state.lastGistUrl}&gt;here&lt;/a&gt;.
+                &lt;/div&gt;
+            );
+        }
+    });
+
+    ReactDOM.render(
+        &lt;UserGist source=&quot;https://api.github.com/users/octocat/gists&quot;/&gt;,
+        document.getElementById(&#39;example&#39;)
+    );
+</code></pre>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;React-入门练习实践总结&quot;&gt;&lt;a href=&quot;#React-入门练习实践总结&quot; class=&quot;headerlink&quot; title=&quot;React 入门练习实践总结&quot;&gt;&lt;/a&gt;React 入门练习实践总结&lt;/h2&gt;
+    
+    </summary>
+    
+      <category term="React" scheme="http://heavenru.com/blog/categories/React/"/>
+    
+    
+      <category term="javascript" scheme="http://heavenru.com/blog/tags/javascript/"/>
+    
+      <category term="react" scheme="http://heavenru.com/blog/tags/react/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Shadowsocks 本地配置</title>
+    <link href="http://heavenru.com/blog/2015/12/01/Shadowsocks-%E6%9C%AC%E5%9C%B0%E9%85%8D%E7%BD%AE/"/>
+    <id>http://heavenru.com/blog/2015/12/01/Shadowsocks-本地配置/</id>
+    <published>2015-12-01T11:37:34.000Z</published>
+    <updated>2017-09-20T08:54:57.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>接上一篇「挣脱牢笼之搭建 VPN」，我们已经购买了虚拟服务器，并且在上面开启了 「Shadowsocks」服务。</p>
+<h3 id="本地「Shadowsocks」配置"><a href="#本地「Shadowsocks」配置" class="headerlink" title="本地「Shadowsocks」配置"></a>本地「Shadowsocks」配置</h3><p>打开我们已经安装的 「Shadowsocks」软件，点击小飞机图标，选择 <code>Servers-&gt;Open Server Preferences</code>，出现如下界面；</p>
+<p><img src="/images/preferences.png" alt=""></p>
+<ul>
+<li>Address: 我们的虚拟服务器（VPS）地址 + 端口</li>
+<li>Encryption: 服务器中开启的加密方式</li>
+<li>Password: 密码</li>
+<li>Remarks: 描述，取个别名</li>
+</ul>
+<a id="more"></a>
+<pre><code class="bash">sudo ssserver -p 443 -k password -m aes-256-cfb --user nobody -d start
+</code></pre>
+<p>如上代码：其中 <code>-k password</code> 中的 <code>password</code> 就是我们自己设置的访问密码，你可以修改为你自己喜欢常用的密码都OK；<code>-m aes-256-cfb</code> 表示的就是我们使用那种加密方式，这里我们不做深究，只要本地配置和服务器一样就可以了；</p>
+<h3 id="配置拦截路由表"><a href="#配置拦截路由表" class="headerlink" title="配置拦截路由表"></a>配置拦截路由表</h3><p>我们知道，在访问国内网络的时候，是不需要使用我们自己的 VPN，那样子反而会更慢，所以我们需要一份配置文件，来告诉 「Shadowsocks」什么时候需要使用到 VPN，幸好，「Shadowsocks」已经给我们提供了这个一个功能，打开我们的小飞机图标也就是应用图片，找打菜单选项里面的 <code>Update PAC from GFWList</code> 来自动获取路由表，在提示 <code>update</code> 成功之后，再选择 <code>Audo Proxy Mode</code> 就能智能的访问那些被「qiang」的网站了。</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;接上一篇「挣脱牢笼之搭建 VPN」，我们已经购买了虚拟服务器，并且在上面开启了 「Shadowsocks」服务。&lt;/p&gt;
+&lt;h3 id=&quot;本地「Shadowsocks」配置&quot;&gt;&lt;a href=&quot;#本地「Shadowsocks」配置&quot; class=&quot;headerlink&quot; title=&quot;本地「Shadowsocks」配置&quot;&gt;&lt;/a&gt;本地「Shadowsocks」配置&lt;/h3&gt;&lt;p&gt;打开我们已经安装的 「Shadowsocks」软件，点击小飞机图标，选择 &lt;code&gt;Servers-&amp;gt;Open Server Preferences&lt;/code&gt;，出现如下界面；&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/images/preferences.png&quot; alt=&quot;&quot;&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Address: 我们的虚拟服务器（VPS）地址 + 端口&lt;/li&gt;
+&lt;li&gt;Encryption: 服务器中开启的加密方式&lt;/li&gt;
+&lt;li&gt;Password: 密码&lt;/li&gt;
+&lt;li&gt;Remarks: 描述，取个别名&lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="服务器" scheme="http://heavenru.com/blog/categories/%E6%9C%8D%E5%8A%A1%E5%99%A8/"/>
+    
+    
+      <category term="VPS" scheme="http://heavenru.com/blog/tags/VPS/"/>
+    
+      <category term="VPN" scheme="http://heavenru.com/blog/tags/VPN/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>挣脱牢笼之搭建 VPN</title>
+    <link href="http://heavenru.com/blog/2015/11/27/%E6%8C%A3%E8%84%B1%E7%89%A2%E7%AC%BC%E4%B9%8B%E6%90%AD%E5%BB%BA%E8%BF%9C%E7%A8%8B%20VPN/"/>
+    <id>http://heavenru.com/blog/2015/11/27/挣脱牢笼之搭建远程 VPN/</id>
+    <published>2015-11-27T11:54:17.000Z</published>
+    <updated>2017-09-20T10:29:09.000Z</updated>
+    
+    <content type="html"><![CDATA[<p><img src="/images/title-bg.png" width="100%"></p>
+<p>为何会想到要翻个墙(为了被河蟹)，作为一个非著名、专业程序员，时常需要查找一下技术方面的资料；一般情况下可能会想到使用「百度」这个坑爹的搜索引擎去查资料。但是结果你会发现找的一堆的什么鬼东西，跟自己搜索的没有半毛钱关系。大多数是带有广告性质的博客或者纯粹的广告商排在最前面，恶心至极。<a id="more"></a></p>
+<p>值得庆幸的是，不是所有的搜索引擎都和百度一样，那就是国外的「<a href="https://www.google.com" target="_blank" rel="external">Google</a>」搜索引擎；送给各位同行的程序员们 「珍爱生命，远离百度」。</p>
+<p>在 2010年3月23日，「Google」高级副总裁大卫·德拉蒙德公开发表声明，宣布将搜索服务由中国内地转至香港。至此，我们就犹如笼中之鸟一样，失去了与外界直接交流。所以想要使用 「Google」搜索服务只能通过其他办法了，也就是我们常说 「fangqiang」。</p>
+<h2 id="搭建服务器-——-购买国外-VPS"><a href="#搭建服务器-——-购买国外-VPS" class="headerlink" title="搭建服务器 —— 购买国外 VPS"></a>搭建服务器 —— 购买国外 VPS</h2><p>VPS：虚拟服务器,虚拟专用服务器(Virtual Private Server),虚拟专属主机。</p>
+<p>这里不要问我哪个 VPS 服务商最好，好不好要自己试过了才知道，这里我就以我自己使用的国外 VPS <a href="https://www.vultr.com/" target="_blank" rel="external">Vultr</a> 为例。</p>
+<h3 id="注册-Vultr"><a href="#注册-Vultr" class="headerlink" title="注册 Vultr"></a>注册 <strong>Vultr</strong></h3><p><img src="/images/regedit.png" width="100%"> </p>
+<p>上图忘记提的一个就是 <strong>Security Code</strong> 也就是所谓的安全码，是我们信用卡背面的写在最后的那个三位数。</p>
+<p>这里的信用卡只要你的信用卡上面有 <strong>VISA</strong>字样的就能够使用。我自己用的招行的信用卡，可以很方便的使用扣款，有一点就是，在你设置了信用卡之后，以后的付款行为都不需要再输入密码了，听起来有点不安全的感觉。。。</p>
+<p>如果你有优惠码的话，可以在 <strong>Redeem Gift Codes Coupons</strong>那里填写，就能折扣购买了。</p>
+<p>上面的基本信息填写完毕之后，接下来就是挑选我们自己所需要的服务器配置了。不多说，上图</p>
+<p><img src="/images/hardware.png" width="100%"></p>
+<p>选完上图的配置之后，其他的就可以不用再勾选了，找到底部的确认按钮提交就可以了。</p>
+<p>提交之后，会进入到 <strong>My Server</strong> 界面，会列出刚刚选择的服务器基本信息。点击最右边的 <strong>manage</strong> 进入详细信息界面，看图：</p>
+<p><img src="/images/machine.png" width="100%"><br><img src="/images/manage.png" width="100%"></p>
+<p>好了，购买服务器的流程到这里就差不多结束了。接下是如何在服务器上面搭建我们自己能用的VPN了。</p>
+<h3 id="远程登录服务器"><a href="#远程登录服务器" class="headerlink" title="远程登录服务器"></a>远程登录服务器</h3><p>由于作者用的是 Mac 这里就不介绍 window 下面的方法了，因为命令都是一样的。</p>
+<p>这里我们使用 Github 上知名的软件 <a href="https://github.com/lichenbuliren/shadowsocks/tree/2.8.2" target="_blank" rel="external">shadowsocks</a>；</p>
+<p>打开我们的命令行工具 <strong>item</strong></p>
+<pre><code class="bash">    ssh ssh root@45.32.22.xxx
+</code></pre>
+<p>然后输入密码，登录到我们的服务器上。登录服务器第一件事情就是修改 VPS 提供给我们的默认 ssh 密码</p>
+<pre><code class="bash">    sudo passwd root
+</code></pre>
+<p>修改完毕之后，退出远程登录（使用 <code>exit</code> 命令）。重新登录我们远程服务器</p>
+<h3 id="安装-shadowsocks-服务"><a href="#安装-shadowsocks-服务" class="headerlink" title="安装 shadowsocks 服务"></a>安装 shadowsocks 服务</h3><pre><code class="bash">    // CentOS:
+    yum install python-setuptools &amp;&amp; easy_install pip
+    pip install shadowsocks
+</code></pre>
+<p>安装成功之后，启动我们的 shadowsocks</p>
+<p><strong>正常启动</strong></p>
+<pre><code class="bash">    ssserver -p 443 -k password -m aes-256-cfb
+</code></pre>
+<p><strong>后台启动</strong></p>
+<pre><code class="bash">    sudo ssserver -p 443 -k password -m aes-256-cfb --user nobody -d start
+</code></pre>
+<p>其中「443」可以任意替换成自己设置的端口，「password」替换成自己设置的密码，「aes-256-cfb」可选的加密方式，默认这个就好。</p>
+<p><strong>停止服务</strong></p>
+<pre><code class="bash">    sudo ssserver -d stop
+</code></pre>
+<p><strong>查看 log</strong></p>
+<pre><code class="bash">    sudo less /var/log/shadowsocks.log
+</code></pre>
+<h3 id="开启防火墙端口"><a href="#开启防火墙端口" class="headerlink" title="开启防火墙端口"></a>开启防火墙端口</h3><p>上面我们假设对外开启了「443」端口，这个时候是还不能访问的，因为防火墙没有将它加入防火墙允许的名单里面。下面开启防火墙的端口</p>
+<pre><code class="bash">    iptables -I INPUT -p tcp --dport 8388 -j ACCEPT
+</code></pre>
+<p>添加完毕之后，执行</p>
+<pre><code class="bash">    service iptables status
+</code></pre>
+<p>查看刚刚添加的端口是否在列表里面，如果在的话，表明添加成功，成功之后，我们保存下，然后重启防火墙</p>
+<pre><code class="bash">    service iptables save
+    service iptables restart
+</code></pre>
+<h3 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h3><p>至此，服务端的 shadowsocks 已经配置完毕，下篇文章我们将继续如何在自己的电脑上通过 shadowsocks 程序连接上远程的 VPN 服务，从而实现「翻墙」能力。下篇再会！</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;&lt;img src=&quot;/images/title-bg.png&quot; width=&quot;100%&quot;&gt;&lt;/p&gt;
+&lt;p&gt;为何会想到要翻个墙(为了被河蟹)，作为一个非著名、专业程序员，时常需要查找一下技术方面的资料；一般情况下可能会想到使用「百度」这个坑爹的搜索引擎去查资料。但是结果你会发现找的一堆的什么鬼东西，跟自己搜索的没有半毛钱关系。大多数是带有广告性质的博客或者纯粹的广告商排在最前面，恶心至极。
+    
+    </summary>
+    
+      <category term="服务器" scheme="http://heavenru.com/blog/categories/%E6%9C%8D%E5%8A%A1%E5%99%A8/"/>
+    
+    
+      <category term="VPS" scheme="http://heavenru.com/blog/tags/VPS/"/>
+    
+      <category term="VPN" scheme="http://heavenru.com/blog/tags/VPN/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>CreateJS 学习笔记——初识 CreateJS</title>
+    <link href="http://heavenru.com/blog/2015/11/25/CreateJS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B001/"/>
+    <id>http://heavenru.com/blog/2015/11/25/CreateJS学习笔记01/</id>
+    <published>2015-11-25T11:33:37.000Z</published>
+    <updated>2017-09-20T08:54:57.000Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="1、什么是-CreateJS"><a href="#1、什么是-CreateJS" class="headerlink" title="1、什么是 CreateJS ?"></a>1、什么是 CreateJS ?</h2><p>CreateJS 是一套可以构建丰富交互体验的 HTML5 游戏的开源工具包，旨在降低 HTML5 项目的开发难度和成本，让开发者以熟悉的方式打造更具现代感的网络交互体验。</p>
+<p>官方地址：<a href="www.createjs.com">www.createjs.com</a>;<br>Github: <a href="https://github.com/CreateJS" target="_blank" rel="external">https://github.com/CreateJS</a></p>
+<a id="more"></a>
+<h2 id="2、CreateJS-库简介"><a href="#2、CreateJS-库简介" class="headerlink" title="2、CreateJS 库简介"></a>2、CreateJS 库简介</h2><p>CreateJS 库包包含五款工具：</p>
+<ul>
+<li>EaselJS：用于 Sprites、动画、向量和位图的绘制，创建 HTML5 Canvas 上的交互体验（包含多点触控），同时提供 Flash 中的 “显示列表” 功能。</li>
+<li>TweenJS：一个简单的用于制作类似 Flash 中 “补间动画” 的引擎，可生成数字或非数字的连续变化效果。提供了丰富的动画接口。</li>
+<li>SoundJS：一个音频播放引擎，能够根据浏览器性能选择音频播放方式。将音频文件作为模块，可随时加载和卸载。</li>
+<li>PrloadJS：帮助你简化网站资源预加载工作，无论加载内容是图形、视频、声音、JS、数据……等等。</li>
+<li>ZOE：将SWF动画导出为EaseIJS的sprite的工具。</li>
+</ul>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;1、什么是-CreateJS&quot;&gt;&lt;a href=&quot;#1、什么是-CreateJS&quot; class=&quot;headerlink&quot; title=&quot;1、什么是 CreateJS ?&quot;&gt;&lt;/a&gt;1、什么是 CreateJS ?&lt;/h2&gt;&lt;p&gt;CreateJS 是一套可以构建丰富交互体验的 HTML5 游戏的开源工具包，旨在降低 HTML5 项目的开发难度和成本，让开发者以熟悉的方式打造更具现代感的网络交互体验。&lt;/p&gt;
+&lt;p&gt;官方地址：&lt;a href=&quot;www.createjs.com&quot;&gt;www.createjs.com&lt;/a&gt;;&lt;br&gt;Github: &lt;a href=&quot;https://github.com/CreateJS&quot;&gt;https://github.com/CreateJS&lt;/a&gt;&lt;/p&gt;
+    
+    </summary>
+    
+      <category term="CreateJS" scheme="http://heavenru.com/blog/categories/CreateJS/"/>
+    
+    
+      <category term="html5 game engine" scheme="http://heavenru.com/blog/tags/html5-game-engine/"/>
+    
+      <category term="study" scheme="http://heavenru.com/blog/tags/study/"/>
+    
+      <category term="js" scheme="http://heavenru.com/blog/tags/js/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Three.js 学习笔记01——介绍和使用 Three.js</title>
+    <link href="http://heavenru.com/blog/2015/11/19/Threejs%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/"/>
+    <id>http://heavenru.com/blog/2015/11/19/Threejs学习笔记/</id>
+    <published>2015-11-19T09:26:26.000Z</published>
+    <updated>2017-09-20T08:54:57.000Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="WebGL-登场"><a href="#WebGL-登场" class="headerlink" title="WebGL 登场"></a>WebGL 登场</h2><p>如今浏览器的功能越来越强大，而且这些功能可以通过 Javascript 直接调用。你可以用 HTML5 标签轻松的添加视频和音频，而且可以在 HTML5 画布上面创建各种交互组件。现在这个功能集合里又多了一个成员，即支持 WebGL。通过 WebGL，你可以直接使用显卡的计算资源，创建高性能的二维和三维计算机图形，然后在 javascript 里直接使用 WebGL 编程。</p>
+<h2 id="Three-js-能做什么"><a href="#Three-js-能做什么" class="headerlink" title="Three.js 能做什么"></a>Three.js 能做什么</h2><p>Three.js 是一个 Javascript 库，针对 WebGL 提供了丰富的 API，只需要几行代码，就可以从简单的三维图形创建出逼真的、实时的场景来。你可以从它的官方地址查看各种炫酷的3D效果。</p>
+<ul>
+<li>创建简单的和复杂的三维图形</li>
+<li>在三维场景中生成动画、移动物体</li>
+<li>在物体上应用纹理和材质</li>
+<li>从三维建模软件中加载图形</li>
+<li>创建基于样条曲线的二维图形</li>
+</ul>
+<p>Three.js 官方地址：<a href="http://threejs.org/" target="_blank" rel="external">http://threejs.org/</a></p>
+<h2 id="使用-Three-js"><a href="#使用-Three-js" class="headerlink" title="使用 Three.js"></a>使用 Three.js</h2><ul>
+<li>你需要一个好的编辑器，这里推荐 <a href="http://www.sublimetext.com/" target="_blank" rel="external"><code>Sublime Text</code></a>，用过的都说好。</li>
+<li>推荐使用 <code>chrome</code> 浏览器，作为一个开发人员，不要问我为什么。</li>
+</ul>
+<h2 id="下载-Three-js-源码"><a href="#下载-Three-js-源码" class="headerlink" title="下载 Three.js 源码"></a>下载 Three.js 源码</h2><p>这里假设读者电脑都安装了 <code>Git</code> ，如果不清楚的可以先去了解下。</p>
+<p>从 <code>github.com</code> 下载 <a href="https://github.com/mrdoob/three.js" target="_blank" rel="external"><code>Three.js</code></a> 源码，打开文件夹，发现文件目录大致如下图，图1 <code>build</code> 目录放的编译合并之后的库文件，<code>src</code> 目录放的为编译的源码文件，可以针对具体需要来加载对应的 js 文件。</p>
+<div style="float:left;text-align:center;width:50%;"><br>    <img src="/images/threejs/three-build.png"><br>    <p>图1</p><br></div>
+
+<div style="float:right;text-align:center;width:50%;"><br>    <img src="/images/threejs/three-build.png"><br>    <p>图2</p><br></div><br><div style="clear:both;"></div> 
+
+<p>在后面的案例中，我们选择的是 <code>build</code> 目下的源文件 <code>three.js</code>。</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;WebGL-登场&quot;&gt;&lt;a href=&quot;#WebGL-登场&quot; class=&quot;headerlink&quot; title=&quot;WebGL 登场&quot;&gt;&lt;/a&gt;WebGL 登场&lt;/h2&gt;&lt;p&gt;如今浏览器的功能越来越强大，而且这些功能可以通过 Javascript 直接调用。你可以用 
+    
+    </summary>
+    
+      <category term="ThreeJS" scheme="http://heavenru.com/blog/categories/ThreeJS/"/>
+    
+    
+      <category term="javascript" scheme="http://heavenru.com/blog/tags/javascript/"/>
+    
+      <category term="webgl" scheme="http://heavenru.com/blog/tags/webgl/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>对字体文件开启GZIP压缩</title>
+    <link href="http://heavenru.com/blog/2015/11/18/web%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96-%E5%BC%80%E5%90%AF%E5%AD%97%E4%BD%93%E6%96%87%E4%BB%B6gzip%E5%8E%8B%E7%BC%A9/"/>
+    <id>http://heavenru.com/blog/2015/11/18/web性能优化-开启字体文件gzip压缩/</id>
+    <published>2015-11-18T03:21:35.000Z</published>
+    <updated>2017-09-20T08:54:57.000Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="字体类别"><a href="#字体类别" class="headerlink" title="字体类别"></a>字体类别</h2><h3 id="TrueType-ttf"><a href="#TrueType-ttf" class="headerlink" title="TrueType (.ttf)"></a>TrueType (.ttf)</h3><p>　　<code>Windows</code> 和 <code>Mac</code> 系统最常用的字体格式，其最大的特点就是它是由一种数学模式来进行定义的基于轮廓技术的字体，这使得它们比基于矢量的字体更容易处理，保证了屏幕与打印输出的一致性。同时，这类字体和矢量字体一样可以随意缩放、旋转而不必担心会出现锯齿。</p>
+<h3 id="EOT-–-Embedded-Open-Type-eot"><a href="#EOT-–-Embedded-Open-Type-eot" class="headerlink" title="EOT – Embedded Open Type (.eot)"></a>EOT – Embedded Open Type (.eot)</h3><p>　　嵌入字体格式 <code>(EOT)</code> 是微软开发的一种技术，允许 <code>OpenType</code> 字体嵌入到网页并可以下载至浏览器渲染，浏览器根据 <code>CSS</code> 中 <code>@font-face</code> 的定义，下载，渲染这种 <code>.EOT</code> 后缀的字体文件。这些文件只在当前页活动的状态下，临时安装在用户的系统中。</p>
+<h3 id="OpenType-otf"><a href="#OpenType-otf" class="headerlink" title="OpenType (.otf)"></a>OpenType (.otf)</h3><p>　　<code>OpenType</code> 是一种可缩放字型 <code>(scalable font)</code> 电脑字体类型，采用 <code>PostScript</code> 格式，是美国微软公司与Adobe公司联合开发，用来替代 <code>TrueType</code> 字型的新字型。这类字体的文件扩展名为 <code>.otf</code>，类型代码是 <code>OTTO</code>，现行标准为 <code>OpenType 1.4</code>。<code>OpenType</code> 最初发表于1996年，并在2000年之后出现大量字体。它源于微软公司的 <code>TrueType Open</code> 字型，<code>TrueType Open</code> 字型又源于 <code>TrueType</code> 字型。<code>OpenType font</code> 包括了Adobe CID-Keyed font技术。Adobe公司已经在2002年末将其字体库全部改用OpenType格式。</p>
+<h3 id="WOFF-–-Web-Open-Font-Format-woff"><a href="#WOFF-–-Web-Open-Font-Format-woff" class="headerlink" title="WOFF – Web Open Font Format (.woff)"></a>WOFF – Web Open Font Format (.woff)</h3><p>　　相对于 TrueType 和 OpenType ，WOFF（Web开发字体格式）是一种专门为了 Web 而设计的字体格式标准，它并不复杂，实际上只是对于 TrueType / OpenType 等字体格式的封装，并针对网络使用加以优化：每个字体文件中含有字体以及针对字体的元数据（Metadata），字体文件被压缩，以便于网络传输，并且不包含任何加密或者 DRM 措施。包括 Adobe、 Lino Type、Monotype 在内的几乎所有主要的字体供应商都加入到支持 WOFF 的行列中来</p>
+<h3 id="SVG-Scalable-Vector-Graphics-Fonts-svg"><a href="#SVG-Scalable-Vector-Graphics-Fonts-svg" class="headerlink" title="SVG (Scalable Vector Graphics) Fonts (.svg)"></a>SVG (Scalable Vector Graphics) Fonts (.svg)</h3><p>　　顾名思义，就是使用 <code>SVG</code> 技术来呈现字体，还有一种 <code>gzip</code> 压缩格式的 <code>SVG</code> 字体 <code>.svgz</code> 。<code>SVG</code> 可缩放矢量图形<code>（Scalable Vector Graphics）</code> 是基于可扩展标记语言 <code>(XML)</code>，用于描述二维矢量图形的一种图形格式。<code>SVG</code> 由W3C制定，是一个开放标准。SVG严格遵从XML语法，并用文本格式的描述性语言来描述图像内容，因此是一种和图像分辨率无关的矢量图形格式。SVG可以使你设计的网页可以更加精彩细致，使用简单的文本命令，SVG可实现色彩线性变化、路径、自定义字体、透明效果、滤镜效果等各式常见的图形图像效果。</p>
+<a id="more"></a>
+<h2 id="字体文件在服务器端开启gzip压缩"><a href="#字体文件在服务器端开启gzip压缩" class="headerlink" title="字体文件在服务器端开启gzip压缩"></a>字体文件在服务器端开启gzip压缩</h2><h4 id="什么是-GZIP-压缩"><a href="#什么是-GZIP-压缩" class="headerlink" title="什么是 GZIP 压缩"></a>什么是 <code>GZIP</code> 压缩</h4><p>GZIP网页压缩，是一种WEB服务器与浏览器之间共同遵守的协议，也就是说WEB服务器和浏览器都必须支持该技术才能实现GZIP压缩，而当下主流的浏览器都是支持GZIP压缩，包括IE6、IE7、IE8、IE9、FireFox、谷歌浏览器、Opera等，而常见的WEB服务器通常有Apache和IIS两种。</p>
+<p>GZIP最早由Jean-loup Gailly和Mark Adler创建，用于UNIX系统的文件压缩。我们在Linux中经常会用到后缀为.gz的文件，它们就是GZIP格式的。目前，GZIP已经成为Internet上使用非常普遍的一种数据压缩格式，或者说一种文件格式。</p>
+<p>GZIP压缩的比率往往在3倍到10倍。</p>
+<h4 id="浏览器对-font-face-Web-fonts-的支持情况"><a href="#浏览器对-font-face-Web-fonts-的支持情况" class="headerlink" title="浏览器对 @font-face Web fonts 的支持情况:"></a>浏览器对 <code>@font-face</code> Web fonts 的支持情况:</h4><p><img src="/images/font-support.png" width="100%"></p>
+<p><br><br></p>
+<h4 id="ttf-otf-浏览器支持情况"><a href="#ttf-otf-浏览器支持情况" class="headerlink" title="ttf/otf 浏览器支持情况"></a>ttf/otf 浏览器支持情况</h4><p><img src="/images/ttf-font.png" width="100%"></p>
+<p><br><br></p>
+<h4 id="woff-浏览器支持情况"><a href="#woff-浏览器支持情况" class="headerlink" title="woff 浏览器支持情况"></a>woff 浏览器支持情况</h4><p><img src="/images/woff-font.png" width="100%"></p>
+<p><br><br></p>
+<h4 id="svg-浏览器支持情况"><a href="#svg-浏览器支持情况" class="headerlink" title="svg 浏览器支持情况"></a>svg 浏览器支持情况</h4><p><img src="/images/svg-font.png" width="100%"></p>
+<p><br><br></p>
+<h4 id="eot-IE-特有支持"><a href="#eot-IE-特有支持" class="headerlink" title="eot IE 特有支持"></a>eot IE 特有支持</h4><p><img src="/images/eot-font.png" width="100%"></p>
+<p><strong>字体文件对应的 minetype </strong>   </p>
+<pre><code>- application/font-woff     woff  
+- application/font-sfnt     ttf
+- application/vnd.ms-fontobject        eot
+- image/svg+xml        svg svgz
+</code></pre><p>以 <a href="m.meizu.com">m.meizu.com</a> 网站中 <code>KaiGenGothicCN-Light.woff</code> 字体文件为例</p>
+<p>开启前字体文件大小为 <code>311kb</code>，开启后 <code>223kb</code>，相比开启前压缩了 <code>30%</code> 左右，如下图</p>
+<p><img src="/images/font-compare.jpg" width="100%"></p>
+<h3 id="步骤一：登录远程服务器"><a href="#步骤一：登录远程服务器" class="headerlink" title="步骤一：登录远程服务器"></a>步骤一：登录远程服务器</h3><p><code>ssh 用户名@远程ip地址</code> 输入密码</p>
+<h3 id="步骤二：修改-nginx-配置文件-mime-types-文件"><a href="#步骤二：修改-nginx-配置文件-mime-types-文件" class="headerlink" title="步骤二：修改 nginx 配置文件 mime.types 文件"></a>步骤二：修改 nginx 配置文件 mime.types 文件</h3><p>打开配置文件，添加如下几个配置项: </p>
+<pre><code>application/font-woff     woff  
+application/font-sfnt     ttf
+application/vnd.ms-fontobject        eot
+image/svg+xml        svg svgz
+</code></pre><h3 id="步骤三：修改-nginx-配置文件-nginx-conf-文件"><a href="#步骤三：修改-nginx-配置文件-nginx-conf-文件" class="headerlink" title="步骤三：修改 nginx 配置文件 nginx.conf 文件"></a>步骤三：修改 nginx 配置文件 nginx.conf 文件</h3><p>打开 <code>nginx.conf</code> 文件，添加如下配置项：   </p>
+<pre><code>gzip_types        text/plain application/x-javascript text/css application/xml application/font-woff application/vnd.ms-fontobject application/font-sfnt image/svg+xml
+</code></pre><p>这里面新增的配置项就是刚刚在 <code>mime.types</code> 里面配置的键</p>
+<p><strong>修改了配置文件，需要重启nginx</strong></p>
+<p><strong>重启 nginx：/data/nginx/sbin/nginx -s reload</strong></p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;字体类别&quot;&gt;&lt;a href=&quot;#字体类别&quot; class=&quot;headerlink&quot; title=&quot;字体类别&quot;&gt;&lt;/a&gt;字体类别&lt;/h2&gt;&lt;h3 id=&quot;TrueType-ttf&quot;&gt;&lt;a href=&quot;#TrueType-ttf&quot; class=&quot;headerlink&quot; title=&quot;TrueType (.ttf)&quot;&gt;&lt;/a&gt;TrueType (.ttf)&lt;/h3&gt;&lt;p&gt;　　&lt;code&gt;Windows&lt;/code&gt; 和 &lt;code&gt;Mac&lt;/code&gt; 系统最常用的字体格式，其最大的特点就是它是由一种数学模式来进行定义的基于轮廓技术的字体，这使得它们比基于矢量的字体更容易处理，保证了屏幕与打印输出的一致性。同时，这类字体和矢量字体一样可以随意缩放、旋转而不必担心会出现锯齿。&lt;/p&gt;
+&lt;h3 id=&quot;EOT-–-Embedded-Open-Type-eot&quot;&gt;&lt;a href=&quot;#EOT-–-Embedded-Open-Type-eot&quot; class=&quot;headerlink&quot; title=&quot;EOT – Embedded Open Type (.eot)&quot;&gt;&lt;/a&gt;EOT – Embedded Open Type (.eot)&lt;/h3&gt;&lt;p&gt;　　嵌入字体格式 &lt;code&gt;(EOT)&lt;/code&gt; 是微软开发的一种技术，允许 &lt;code&gt;OpenType&lt;/code&gt; 字体嵌入到网页并可以下载至浏览器渲染，浏览器根据 &lt;code&gt;CSS&lt;/code&gt; 中 &lt;code&gt;@font-face&lt;/code&gt; 的定义，下载，渲染这种 &lt;code&gt;.EOT&lt;/code&gt; 后缀的字体文件。这些文件只在当前页活动的状态下，临时安装在用户的系统中。&lt;/p&gt;
+&lt;h3 id=&quot;OpenType-otf&quot;&gt;&lt;a href=&quot;#OpenType-otf&quot; class=&quot;headerlink&quot; title=&quot;OpenType (.otf)&quot;&gt;&lt;/a&gt;OpenType (.otf)&lt;/h3&gt;&lt;p&gt;　　&lt;code&gt;OpenType&lt;/code&gt; 是一种可缩放字型 &lt;code&gt;(scalable font)&lt;/code&gt; 电脑字体类型，采用 &lt;code&gt;PostScript&lt;/code&gt; 格式，是美国微软公司与Adobe公司联合开发，用来替代 &lt;code&gt;TrueType&lt;/code&gt; 字型的新字型。这类字体的文件扩展名为 &lt;code&gt;.otf&lt;/code&gt;，类型代码是 &lt;code&gt;OTTO&lt;/code&gt;，现行标准为 &lt;code&gt;OpenType 1.4&lt;/code&gt;。&lt;code&gt;OpenType&lt;/code&gt; 最初发表于1996年，并在2000年之后出现大量字体。它源于微软公司的 &lt;code&gt;TrueType Open&lt;/code&gt; 字型，&lt;code&gt;TrueType Open&lt;/code&gt; 字型又源于 &lt;code&gt;TrueType&lt;/code&gt; 字型。&lt;code&gt;OpenType font&lt;/code&gt; 包括了Adobe CID-Keyed font技术。Adobe公司已经在2002年末将其字体库全部改用OpenType格式。&lt;/p&gt;
+&lt;h3 id=&quot;WOFF-–-Web-Open-Font-Format-woff&quot;&gt;&lt;a href=&quot;#WOFF-–-Web-Open-Font-Format-woff&quot; class=&quot;headerlink&quot; title=&quot;WOFF – Web Open Font Format (.woff)&quot;&gt;&lt;/a&gt;WOFF – Web Open Font Format (.woff)&lt;/h3&gt;&lt;p&gt;　　相对于 TrueType 和 OpenType ，WOFF（Web开发字体格式）是一种专门为了 Web 而设计的字体格式标准，它并不复杂，实际上只是对于 TrueType / OpenType 等字体格式的封装，并针对网络使用加以优化：每个字体文件中含有字体以及针对字体的元数据（Metadata），字体文件被压缩，以便于网络传输，并且不包含任何加密或者 DRM 措施。包括 Adobe、 Lino Type、Monotype 在内的几乎所有主要的字体供应商都加入到支持 WOFF 的行列中来&lt;/p&gt;
+&lt;h3 id=&quot;SVG-Scalable-Vector-Graphics-Fonts-svg&quot;&gt;&lt;a href=&quot;#SVG-Scalable-Vector-Graphics-Fonts-svg&quot; class=&quot;headerlink&quot; title=&quot;SVG (Scalable Vector Graphics) Fonts (.svg)&quot;&gt;&lt;/a&gt;SVG (Scalable Vector Graphics) Fonts (.svg)&lt;/h3&gt;&lt;p&gt;　　顾名思义，就是使用 &lt;code&gt;SVG&lt;/code&gt; 技术来呈现字体，还有一种 &lt;code&gt;gzip&lt;/code&gt; 压缩格式的 &lt;code&gt;SVG&lt;/code&gt; 字体 &lt;code&gt;.svgz&lt;/code&gt; 。&lt;code&gt;SVG&lt;/code&gt; 可缩放矢量图形&lt;code&gt;（Scalable Vector Graphics）&lt;/code&gt; 是基于可扩展标记语言 &lt;code&gt;(XML)&lt;/code&gt;，用于描述二维矢量图形的一种图形格式。&lt;code&gt;SVG&lt;/code&gt; 由W3C制定，是一个开放标准。SVG严格遵从XML语法，并用文本格式的描述性语言来描述图像内容，因此是一种和图像分辨率无关的矢量图形格式。SVG可以使你设计的网页可以更加精彩细致，使用简单的文本命令，SVG可实现色彩线性变化、路径、自定义字体、透明效果、滤镜效果等各式常见的图形图像效果。&lt;/p&gt;
+    
+    </summary>
+    
+      <category term="font" scheme="http://heavenru.com/blog/categories/font/"/>
+    
+    
+      <category term="移动端" scheme="http://heavenru.com/blog/tags/%E7%A7%BB%E5%8A%A8%E7%AB%AF/"/>
+    
+      <category term="性能优化" scheme="http://heavenru.com/blog/tags/%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96/"/>
+    
+      <category term="font" scheme="http://heavenru.com/blog/tags/font/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>移动端样式常用技巧分享</title>
+    <link href="http://heavenru.com/blog/2015/11/18/%E7%A7%BB%E5%8A%A8%E7%AB%AF%E4%BC%98%E5%8C%96/"/>
+    <id>http://heavenru.com/blog/2015/11/18/移动端优化/</id>
+    <published>2015-11-18T03:21:35.000Z</published>
+    <updated>2017-09-20T08:54:57.000Z</updated>
+    
+    <content type="html"><![CDATA[<h3 id="1、居中显示"><a href="#1、居中显示" class="headerlink" title="1、居中显示"></a>1、居中显示</h3><p>主要使用 css3 <code>translate</code> 属性，如 <code>translate3d(-50%,-50%,0)</code> 这里的百分比相对元素自身宽高来计算的，所以在不清楚自身DOM宽高的情况下，可以很方便的居中布局</p>
+<pre><code class="html">    &lt;div class=&quot;container&quot;&gt;
+        这是容器
+        &lt;div class=&quot;demo&quot;&gt;
+            居中显示
+        &lt;/div&gt;
+    &lt;/div&gt;
+</code></pre>
+<pre><code class="css">    .container{
+        width: 80%;
+        height:80%;
+        position:absolute;
+        top: 50%;
+        left: 50%;
+        border: 1px solid red;
+        transform: translate3d(-50%, -50%, 0);
+        box-sizing: border-box;
+    }
+
+    .container .demo{
+        position: absolute;
+        border: 1px solid #ddd;
+        width: 40%;
+        height: 40%;
+        top: 50%;
+        left: 50%;
+        transform: translate3d(-50%,-50%,0);
+    }
+</code></pre>
+<p>另一种居中方案：<a href="http://jsbin.com/medeserawe/edit?html,output" target="_blank" rel="external">http://jsbin.com/medeserawe/edit?html,output</a></p>
+<a id="more"></a>
+<h3 id="2、开启-GPU-加速"><a href="#2、开启-GPU-加速" class="headerlink" title="2、开启 GPU 加速"></a>2、开启 GPU 加速</h3><p>为动画 <code>DOM</code> 元素添加 <code>CSS3</code> 样式 <code>transform:transition3d(0,0,0)</code> 或 <code>transform:translateZ(0)</code>;，这两个属性都会开启GPU硬件加速模式，从而让浏览器在渲染动画时从 <code>CPU</code> 转向 <code>GPU</code> ，提高动画渲染速度</p>
+<h4 id="开启GPU硬件加速可能触发的问题："><a href="#开启GPU硬件加速可能触发的问题：" class="headerlink" title="开启GPU硬件加速可能触发的问题："></a>开启GPU硬件加速可能触发的问题：</h4><p>通过 <code>transform:transition3d/translateZ</code> 开启 <code>GPU</code> 硬件加速之后，有些时候可能会导致浏览器频繁闪烁或抖动，可以尝试以下办法解决之：</p>
+<pre><code>-webkit-backface-visibility: hidden;
+</code></pre><h3 id="3、解决字体变虚问题"><a href="#3、解决字体变虚问题" class="headerlink" title="3、解决字体变虚问题"></a>3、解决字体变虚问题</h3><pre><code>// 开启抗锯齿 ，MacOS，个人感觉还是不开
+-webkit-font-smoothing: antialiased;
+</code></pre><p>参考资料：</p>
+<p><a href="http://www.iyunlu.com/view/css-xhtml/67.html" target="_blank" rel="external">http://www.iyunlu.com/view/css-xhtml/67.html</a><br><a href="http://www.iyunlu.com/view/css-xhtml/66.html" target="_blank" rel="external">http://www.iyunlu.com/view/css-xhtml/66.html</a></p>
+<h3 id="4、图片优化"><a href="#4、图片优化" class="headerlink" title="4、图片优化"></a>4、图片优化</h3><h4 id="索引透明颜色与Alpha透明通道"><a href="#索引透明颜色与Alpha透明通道" class="headerlink" title="索引透明颜色与Alpha透明通道"></a>索引透明颜色与Alpha透明通道</h4><ul>
+<li><p><a href="http://baike.baidu.com/view/822336.htm?func=retitle" target="_blank" rel="external">索引色透明</a></p>
+<p>  挑选一副图片中最有代表性的若干种颜色（通常不超过256种），编制成颜色表。由这些颜色来组成我们的图片，后果就是会出现边缘</p>
+</li>
+</ul>
+<ul>
+<li><a href="http://baike.baidu.com/view/175060.htm?fromtitle=%E9%98%BF%E5%B0%94%E6%B3%95%E9%80%9A%E9%81%93&amp;fromid=6917656&amp;type=syn" target="_blank" rel="external">Alpha透明通道</a></li>
+</ul>
+<p>png8有8位的布尔透明通道（要么完全透明，要么完全不透明，不支持半透明）最多只能展现256中颜色<br>，png24则有24位的布尔透明通道（所谓半透明）。</p>
+<p>在不需要半透明，并且色彩度不高的情况下尽量使用PNG8图片，会比PNG24小很多</p>
+<p>Mac下使用<code>ImageAlpha</code>软件针对<code>.png</code>图片的优化，使用<code>ImageOptim</code>对<code>.jpg</code>图片的优化</p>
+<p>windows用户使用在线网站压缩，常见的有<a href="http://zhitu.tencent.com/" target="_blank" rel="external">智图</a></p>
+<h3 id="5、音乐播放问题"><a href="#5、音乐播放问题" class="headerlink" title="5、音乐播放问题"></a>5、音乐播放问题</h3><p>经过测试，在最新的 IOS 9.1 和 Android 5.0 版本中，音频均能够在微信端自动播放，但是在移动端的浏览器中，Android 中的 chrome 浏览器不支持自动播放，UC、QQ 浏览器支持自动播放；而 IOS 中的浏览器都不支持自动播放。</p>
+<p>事件兼容:</p>
+<p>测试发现，IOS 对 touchstart 事件的响应中，无法获取到 <code>audio.paused</code> 属性值，也无法响应 <code>audio.play()</code> 方法，<br>解决方案：将 <code>touchstart</code> 改为 <code>click</code> 事件就能够使 <code>audio</code> 元素正确响应</p>
+<h4 id="多个音频播放的最佳方案-Audio-sprite"><a href="#多个音频播放的最佳方案-Audio-sprite" class="headerlink" title="多个音频播放的最佳方案 Audio sprite"></a>多个音频播放的最佳方案 Audio sprite</h4><p>将多个 <code>audio</code> 文件合并到一个文件中，各个音频文件之间要留下适当的空隙</p>
+<p>简单的 <code>audio sprite</code> 实现</p>
+<pre><code class="javascript">    var audioSprite = document.getElementById(&#39;audio&#39;);
+    var spriteData = {
+        meow1: {
+            start: 0,
+            length: 1.1
+        },
+        meow2: {
+            start: 1.3,
+            length: 1.1
+        },
+        whine: {
+            start: 2.7,
+            length: 0.8
+        },
+        purr: {
+            start: 5,
+            length: 5
+        }
+    };
+
+    // play meow2 sprite
+    audioSprite.currentTime = spriteData.meow2.start;
+    audioSprite.play();
+</code></pre>
+<p>当播放到结尾时，停止流的逻辑</p>
+<pre><code class="javascript">    var handler = function() {
+        if (this.currentTime &gt;= spriteData.meow2.start + spriteData.meow2.length) {
+            this.pause();
+        }
+    };
+    audioSprite.addEventListener(&#39;timeupdate&#39;, handler, false);
+</code></pre>
+<p><a href="http://jsfiddle.net/aarongloege/rQv5h/light/" target="_blank" rel="external">测试Demo</a>;</p>
+<p>参考资料：<a href="http://www.ibm.com/developerworks/cn/web/wa-ioshtml5/" target="_blank" rel="external">克服IOS的音频局限</a></p>
+<h3 id="6、字体图标"><a href="#6、字体图标" class="headerlink" title="6、字体图标"></a>6、字体图标</h3><p>能用字体图标就使用字体图标，IE6据说都能支持；<a href="http://www.iconfont.cn/" target="_blank" rel="external">iconfont</a></p>
+<h3 id="7、meta头部优化"><a href="#7、meta头部优化" class="headerlink" title="7、meta头部优化"></a>7、meta头部优化</h3><pre><code>//iphone设备中的safari私有meta标签，允许全屏模式浏览；
+&lt;meta content=&quot;yes&quot; name=&quot;apple-mobile-web-app-capable&quot; /&gt;
+
+// 去除邮箱地址识别
+&lt;meta content=&quot;email=no&quot; name=&quot;format-detection&quot; /&gt;
+
+&lt;!-- 宽度设置为设备实际宽度，初始化倍数为1，最小倍数为1，最大倍数为1，用户缩放为否 --&gt;  
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,inital-scale=1.0,minimum-scale=1.0,maximum-scake=1.0,user-scalable=no&quot; /&gt;  
+
+&lt;!-- 删除默认的苹果工具栏和菜单栏 --&gt;  
+&lt;meta name=&quot;apple-mobile-web-app-capable&quot; content=&quot;yes&quot; /&gt; 
+
+&lt;!-- 苹果手机顶部为黑色 --&gt;  
+&lt;meta name=&quot;apple-mobile-web-status-bar-style&quot; content=&quot;black&quot; /&gt; 
+
+&lt;!-- 屏蔽浏览器自动识别数字为电话号码 --&gt;  
+&lt;meta name=&quot;fromat-detecition&quot; content=&quot;telephone=no&quot; /&gt; 
+</code></pre><h3 id="8、禁止用户某些操作"><a href="#8、禁止用户某些操作" class="headerlink" title="8、禁止用户某些操作"></a>8、禁止用户某些操作</h3><pre><code>a, img {
+    -webkit-touch-callout: none; /* 禁止长按链接与图片弹出菜单 */
+}
+html, body {
+    -webkit-user-select: none;   /* 禁止选中文本（如无文本选中需求，此为必选项） */
+    user-select: none;
+}
+</code></pre><h3 id="9、解决IOS中横屏字体变大问题"><a href="#9、解决IOS中横屏字体变大问题" class="headerlink" title="9、解决IOS中横屏字体变大问题"></a>9、解决IOS中横屏字体变大问题</h3><pre><code>/*禁止IOS横屏的时候字体变大*/
+-webkit-text-size-adjust: none;
+</code></pre><h3 id="10、目前少用flex布局，改用table布局"><a href="#10、目前少用flex布局，改用table布局" class="headerlink" title="10、目前少用flex布局，改用table布局"></a>10、目前少用flex布局，改用table布局</h3><p>目前在uc上面的对于 <code>flex</code> 布局支持不好，改用其他方案</p>
+<h3 id="11、小图标元素改用base64位"><a href="#11、小图标元素改用base64位" class="headerlink" title="11、小图标元素改用base64位"></a>11、小图标元素改用base64位</h3><p>减少http请求，将小图标转化成base64格式，目前我们的mz-fis框架已经支持，使用<code>url?__inline</code>方式就可以方便的转化了</p>
+<h3 id="12、图片默认会有一些白边框问题"><a href="#12、图片默认会有一些白边框问题" class="headerlink" title="12、图片默认会有一些白边框问题"></a>12、图片默认会有一些白边框问题</h3><p>Demo：<a href="http://m.meizu.com/smart/router/summary.html" target="_blank" rel="external">http://m.meizu.com/smart/router/summary.html</a></p>
+<ul>
+<li>给图片的父容器设置 <code>line-height:0</code> 解决</li>
+<li>给图片本身设置 <code>display:block</code> 解决，优先使用这个方法</li>
+</ul>
+<h3 id="13、在使用百分比的时候，尽量使用偶数"><a href="#13、在使用百分比的时候，尽量使用偶数" class="headerlink" title="13、在使用百分比的时候，尽量使用偶数"></a>13、在使用百分比的时候，尽量使用偶数</h3><p>Demo： <a href="http://m.meizu.com/products/meilanmetal/summary.html" target="_blank" rel="external">http://m.meizu.com/products/meilanmetal/summary.html</a></p>
+<p>在改成奇数的情况下，很容易出现手指断层的现象，对不齐等问题</p>
+<h3 id="14、动画优化"><a href="#14、动画优化" class="headerlink" title="14、动画优化"></a>14、动画优化</h3><p>在使用<code>transition</code>属性的时候，尽量指名具体的动画属性，提高动画流畅度</p>
+<p>需要做动画的 <code>DOM</code> 元素，优先使用 <code>position:absoulte</code> 脱离文档流，然后使用 <code>transform</code> 来执行动画操作，以减少dom重绘带来的性能消耗</p>
+<h3 id="Q-amp-A"><a href="#Q-amp-A" class="headerlink" title="Q&amp;A"></a>Q&amp;A</h3><ul>
+<li>多音频播放问题？</li>
+<li>对于 <code>viewport</code> 的正确使用问题？</li>
+</ul>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p><a href="http://www.infoq.com/cn/articles/javascript-high-performance-animation-and-page-rendering" target="_blank" rel="external">http://www.infoq.com/cn/articles/javascript-high-performance-animation-and-page-rendering</a>;</p>
+<p><a href="https://github.com/AlloyTeam/Mars/blob/master/performance/css-property-animation-performance.md" target="_blank" rel="external">https://github.com/AlloyTeam/Mars/blob/master/performance/css-property-animation-performance.md</a>;</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h3 id=&quot;1、居中显示&quot;&gt;&lt;a href=&quot;#1、居中显示&quot; class=&quot;headerlink&quot; title=&quot;1、居中显示&quot;&gt;&lt;/a&gt;1、居中显示&lt;/h3&gt;&lt;p&gt;主要使用 css3 &lt;code&gt;translate&lt;/code&gt; 属性，如 &lt;code&gt;translate3d(-50%,-50%,0)&lt;/code&gt; 这里的百分比相对元素自身宽高来计算的，所以在不清楚自身DOM宽高的情况下，可以很方便的居中布局&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;html&quot;&gt;    &amp;lt;div class=&amp;quot;container&amp;quot;&amp;gt;
+        这是容器
+        &amp;lt;div class=&amp;quot;demo&amp;quot;&amp;gt;
+            居中显示
+        &amp;lt;/div&amp;gt;
+    &amp;lt;/div&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code class=&quot;css&quot;&gt;    .container{
+        width: 80%;
+        height:80%;
+        position:absolute;
+        top: 50%;
+        left: 50%;
+        border: 1px solid red;
+        transform: translate3d(-50%, -50%, 0);
+        box-sizing: border-box;
+    }
+
+    .container .demo{
+        position: absolute;
+        border: 1px solid #ddd;
+        width: 40%;
+        height: 40%;
+        top: 50%;
+        left: 50%;
+        transform: translate3d(-50%,-50%,0);
+    }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;另一种居中方案：&lt;a href=&quot;http://jsbin.com/medeserawe/edit?html,output&quot;&gt;http://jsbin.com/medeserawe/edit?html,output&lt;/a&gt;&lt;/p&gt;
+    
+    </summary>
+    
+      <category term="css" scheme="http://heavenru.com/blog/categories/css/"/>
+    
+    
+      <category term="移动端" scheme="http://heavenru.com/blog/tags/%E7%A7%BB%E5%8A%A8%E7%AB%AF/"/>
+    
+      <category term="性能优化" scheme="http://heavenru.com/blog/tags/%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96/"/>
+    
+      <category term="css" scheme="http://heavenru.com/blog/tags/css/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>原生JS Tab组件</title>
+    <link href="http://heavenru.com/blog/2015/09/15/%E5%8E%9F%E7%94%9FJS-Tab%E7%BB%84%E4%BB%B6/"/>
+    <id>http://heavenru.com/blog/2015/09/15/原生JS-Tab组件/</id>
+    <published>2015-09-15T11:31:51.000Z</published>
+    <updated>2017-09-20T08:54:57.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>最近在<a href="https://github.com/" target="_blank" rel="external">github</a>上面看到一个有意思的项目，名字叫做<a href="https://github.com/nimojs/learn-js" target="_blank" rel="external">learnjs</a>，这里会提供一些基础的JS任务，由浅入深的完成一个个项目不同阶段，从而提高个人的编码水平。</p>
+<p>好了，回到正题，在这里分享下个人编写的Tab组件这个项目的代码，由于没有使用第三方JS库<br>所以下面的代码中没有去考虑低版本浏览器的兼容性问题。</p>
+<a id="more"></a>
+<h2 id="html-代码布局"><a href="#html-代码布局" class="headerlink" title="html 代码布局"></a>html 代码布局</h2><pre><code class="html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;tab组件-level3&lt;/title&gt;
+    &lt;link rel=&quot;stylesheet&quot; href=&quot;css/tab.css&quot;&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div class=&quot;tab-container&quot;&gt;
+        &lt;div class=&quot;tab-nav&quot;&gt;
+            &lt;span class=&quot;tab-nav-item&quot;&gt;tabl&lt;/span&gt;
+            &lt;span class=&quot;tab-nav-item&quot;&gt;tab2&lt;/span&gt;
+            &lt;span class=&quot;tab-nav-item&quot;&gt;tab3&lt;/span&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;tab-contents tab-contents-active&quot;&gt;这是内容1&lt;/div&gt;
+        &lt;div class=&quot;tab-contents&quot;&gt;这是内容2&lt;/div&gt;
+        &lt;div class=&quot;tab-contents&quot;&gt;这是内容3&lt;/div&gt;
+    &lt;/div&gt;
+    &lt;script type=&quot;text/javascript&quot; src=&quot;tab-level3.js&quot;&gt;&lt;/script&gt;
+    &lt;script&gt;
+        var tab = new Tab({
+            element: &#39;.tab-container&#39;,
+            trigger: &#39;.tab-nav-item&#39;,
+            triggerActiveClass: &#39;ui-tab-active&#39;,
+            contents: &#39;.tab-contents&#39;,
+            activeIndex: 0,
+            //回调方法，在触发tab切换的时候执行
+            onSwitch: function(index, count){
+                console.log(&quot;index %d count %d&quot;,index,count);
+            }
+        });
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<h2 id="CSS-代码"><a href="#CSS-代码" class="headerlink" title="CSS 代码"></a>CSS 代码</h2><pre><code class="css">*{
+    margin: 0;
+    padding: 0;
+}
+
+.tab-container{
+    width: 400px;
+    height: 300px;
+    margin: 0 auto;
+    margin-top: 30px;
+}
+
+.tab-container .tab-nav{
+    height: 35px;
+    line-height: 35px;
+    font-size: 20px;
+}
+
+.tab-container .tab-nav .tab-nav-item{
+    display: inline-block;
+    padding: 0 20px;
+    border-radius: 5px;
+    border: 1px solid #fff;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    cursor: pointer;
+}
+
+.tab-container .tab-nav .tab-nav-item.tab-nav-item-active{
+    border-color:#ccc;
+    position: relative;
+    border-bottom-color:#fff;
+    z-index: 2;
+    background-color: #fff;
+}
+.tab-container .tab-nav .tab-nav-item.ui-tab-active{
+    border-color:#ccc;
+    position: relative;
+    border-bottom-color:#fff;
+    z-index: 2;
+    background-color: #fff;
+    color: red;
+}
+
+.tab-container .tab-contents{
+    display: none;
+    border:1px solid #ccc;
+    position: relative;
+    z-index: 1;
+    height: 100px;
+    padding: 20px;
+}
+
+.tab-container .tab-contents.tab-contents-active{
+    display: block;
+}
+</code></pre>
+<h2 id="JS封装"><a href="#JS封装" class="headerlink" title="JS封装"></a>JS封装</h2><pre><code class="javascript">(function(w, doc) {
+    // 构造函数模式
+    function Tab(options) {
+        this.options = {
+            element: &#39;.tab-container&#39;, //tab组件容器，必选
+            triggers: &#39;.tab-nav-item&#39;, //触发selector, 必选
+            triggerClass: &#39;tab-nav-item&#39;,
+            triggerActiveClass: &#39;tab-nav-item-active&#39;,
+            contents: &#39;.tab-contents&#39;,
+            activeIndex: 0
+        }
+        this.init(options);
+    };
+
+    Tab.prototype = {
+        init: function(options) {
+            this._extend(options);
+            this.showTab(this.options.activeIndex);
+            this.bindEvent();
+        },
+        _extend: function(options) {
+            if (options) {
+                for (var key in options) {
+                    this.options[key] = options[key];
+                }
+            }
+        },
+        /**
+         * 显示指定索引的面板
+         * @param  {[type]} index tab索引，如果为空，则取配置参数
+         * @return {[type]}       [description]
+         */
+        showTab: function(index, callback) {
+            var tabTrigger = doc.querySelectorAll(this.options.triggers),
+                tabContents = doc.querySelectorAll(this.options.contents),
+                // 如果传入的激活索引大于元素最大索引值，则取默认的0
+                activeIndex;
+
+            if (!index) {
+                activeIndex = 0;
+            } else {
+                activeIndex = index &gt; tabTrigger.length - 1 ? 0 : index;
+            }
+
+            // 初始化激活tab
+            for (var i = 0, len = tabTrigger.length; i &lt; len; i++) {
+                if (activeIndex == i) {
+                    tabTrigger[i].classList.add(this.options.triggerActiveClass);
+                    tabContents[i].style.display = &#39;block&#39;;
+                } else {
+                    tabTrigger[i].classList.contains(this.options.triggerActiveClass) &amp;&amp; tabTrigger[i].classList.remove(this.options.triggerActiveClass);
+                    tabContents[i].style.display = &#39;none&#39;;
+                }
+            }
+
+            callback &amp;&amp; callback(index, tabTrigger.length);
+        },
+        bindEvent: function() {
+            var tabContainer = doc.querySelector(this.options.element),
+                tabTrigger = doc.querySelectorAll(this.options.triggers),
+                tabContents = doc.querySelectorAll(this.options.contents);
+            var that = this,
+                callback = this.options.onSwitch;
+            tabContainer.addEventListener(&#39;click&#39;, function(e) {
+                var triggerClass = that.options.triggerClass,
+                    triggerActiveClass = that.options.triggerActiveClass;
+                // 判断事件源对象是否是trigger对象
+                if (e.target.classList.contains(triggerClass)) {
+                    // 获取当前触发索引
+                    for (var i = 0, len = tabTrigger.length; i &lt; len; i++) {
+                        if (tabTrigger[i] == e.target) {
+                            that.showTab(i, callback);
+                            return;
+                        }
+                    }
+                }
+            }, false);
+        }
+    };
+    // 绑定到window全局对象
+    return w.Tab = Tab;
+})(window, document);
+</code></pre>
+<h2 id="调用方式"><a href="#调用方式" class="headerlink" title="调用方式"></a>调用方式</h2><pre><code class="javascript">var tab = new Tab({
+    element: &#39;.tab-container&#39;,
+    trigger: &#39;.tab-nav-item&#39;,
+    triggerActiveClass: &#39;ui-tab-active&#39;,
+    contents: &#39;.tab-contents&#39;,
+    activeIndex: 0
+});
+</code></pre>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;最近在&lt;a href=&quot;https://github.com/&quot;&gt;github&lt;/a&gt;上面看到一个有意思的项目，名字叫做&lt;a href=&quot;https://github.com/nimojs/learn-js&quot;&gt;learnjs&lt;/a&gt;，这里会提供一些基础的JS任务，由浅入深的完成一个个项目不同阶段，从而提高个人的编码水平。&lt;/p&gt;
+&lt;p&gt;好了，回到正题，在这里分享下个人编写的Tab组件这个项目的代码，由于没有使用第三方JS库&lt;br&gt;所以下面的代码中没有去考虑低版本浏览器的兼容性问题。&lt;/p&gt;
+    
+    </summary>
+    
+      <category term="JavaScript" scheme="http://heavenru.com/blog/categories/JavaScript/"/>
+    
+    
+      <category term="原生JS" scheme="http://heavenru.com/blog/tags/%E5%8E%9F%E7%94%9FJS/"/>
+    
+      <category term="Widget" scheme="http://heavenru.com/blog/tags/Widget/"/>
+    
+      <category term="封装" scheme="http://heavenru.com/blog/tags/%E5%B0%81%E8%A3%85/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>放弃jQuery,使用原生JS API</title>
+    <link href="http://heavenru.com/blog/2015/09/02/%E6%94%BE%E5%BC%83jQuery,%E4%BD%BF%E7%94%A8%E5%8E%9F%E7%94%9FJS%20API/"/>
+    <id>http://heavenru.com/blog/2015/09/02/放弃jQuery,使用原生JS API/</id>
+    <published>2015-09-02T10:31:25.000Z</published>
+    <updated>2016-05-12T09:32:51.000Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="1、监听文档加载事件"><a href="#1、监听文档加载事件" class="headerlink" title="1、监听文档加载事件"></a>1、监听文档加载事件</h2><pre><code class="javascript">    document.addEventListener(&quot;DOMContentLoaded&quot;, function() {
+        // Code
+    }, false);
+</code></pre>
+<h2 id="2、遍历DOM节点"><a href="#2、遍历DOM节点" class="headerlink" title="2、遍历DOM节点"></a>2、遍历DOM节点</h2><pre><code class="javascript">    // 获取子元素个数
+    var childElementCount = document.querySelector(&quot;div&quot;).childElementCount;
+    // 获取父节点
+    var parent = document.querySelector(&quot;div&quot;).parentNode;
+    // 获取后一个兄弟节点
+    var next = document.querySelector(&quot;div&quot;).nextSibling;
+    // 获取后一个兄弟节点2
+    var next = document.querySelector(&quot;div&quot;).nextElementSibling;
+    // 获取前一个兄弟节点
+    var prev = document.querySelector(&quot;div&quot;).previousSibling;
+    // 获取前一个兄弟节点2 ，这里的节点不抱罗文本节点
+    var prev = document.querySelector(&quot;div&quot;).previousElementSibling;
+    // 获取第一个子节点
+    var child = document.querySelector(&quot;div&quot;).children[0];
+    // 获取第一个子节点2 这里的节点不抱罗文本节点
+    var child = document.querySelector(&quot;div&quot;).firstElementChild;
+    // 获取最后一个子节点
+    var last = document.querySelector(&quot;div&quot;).lastElementChild;
+</code></pre>
+<h2 id="3、样式名操作"><a href="#3、样式名操作" class="headerlink" title="3、样式名操作"></a>3、样式名操作</h2><pre><code class="javascript">    // 添加一个class类名,如果已经存在了，则不会重复添加
+    // 但是不支持同时添加多个以空格分割的class
+    element.classList.add(&#39;bar&#39;);
+    // 删除一个class类名
+    element.classList.remove(&#39;foo&#39;);
+    // 判断是否已经有一个指定的类名
+    element.classList.contains(&#39;foo&#39;);
+    // 类名切换
+    element.classList.toggle(&#39;active&#39;);
+</code></pre>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;1、监听文档加载事件&quot;&gt;&lt;a href=&quot;#1、监听文档加载事件&quot; class=&quot;headerlink&quot; title=&quot;1、监听文档加载事件&quot;&gt;&lt;/a&gt;1、监听文档加载事件&lt;/h2&gt;&lt;pre&gt;&lt;code class=&quot;javascript&quot;&gt;    documen
+    
+    </summary>
+    
+      <category term="JavaScript" scheme="http://heavenru.com/blog/categories/JavaScript/"/>
+    
+    
+      <category term="study" scheme="http://heavenru.com/blog/tags/study/"/>
+    
+      <category term="js" scheme="http://heavenru.com/blog/tags/js/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>使用Hexo搭建GitHub个人博客</title>
+    <link href="http://heavenru.com/blog/2015/09/02/%E4%BD%BF%E7%94%A8Hexo%E6%90%AD%E5%BB%BAGitHub%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2/"/>
+    <id>http://heavenru.com/blog/2015/09/02/使用Hexo搭建GitHub个人博客/</id>
+    <published>2015-09-02T10:31:25.000Z</published>
+    <updated>2015-12-01T12:10:25.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>最近突然想起来要捣鼓一个自己的个人博客网站，在网上查了下各种资料，最后决定使用Hexo来搭建了。在捣鼓的过程中也发现有很多坑，在这里总结下个人的搭建经历。</p>
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#intro">Hexo简介</a></li>
+<li><a href="#install">Hexo安装方法</a></li>
+<li><a href="#config">Hexo配置</a></li>
+<li><a href="#write">写文章</a></li>
+<li><a href="#deploy">Hexo部署</a></li>
+<li><a href="#plugins">Hexo常用插件</a></li>
+</ol>
+<h1 id="1-Hexo简介"><a href="#1-Hexo简介" class="headerlink" title="1. Hexo简介"></a><a name="intro">1. Hexo简介</a></h1><p>Hexo 是一个轻量的静态博客框架。通过Hexo可以快速生成一个静态博客框架,仅需要几条命令就可以完成,相当方便。</p>
+<p>而架设Hexo的环境更简单了 不需要lnmp/lamp这些繁琐复杂的环境 仅仅需要一个简单的http服务器即可使用 或者使用互联网上免费的页面托管服务<br>比如Hexo的官方网站<a href="http://hexo.io" target="_blank" rel="external">http://hexo.io</a> 就是托管于github的pages服务上</p>
+<a id="more"></a>
+<h1 id="2-Hexo安装"><a href="#2-Hexo安装" class="headerlink" title="2. Hexo安装"></a><a name="install">2. Hexo安装</a></h1><p>这里只讨论使用npm的方式安装，官方主页提供最新的安装命令</p>
+<pre><code class="bash">$ sudo npm install -g hexo-cli
+</code></pre>
+<p>如果不能安装，尝试换成淘宝镜像源</p>
+<pre><code class="bash">$ sudo npm install -g cnpm --registry=https://registry.npm.taobao.org
+$ sudo cnpm install -g hexo-cli
+</code></pre>
+<p>新建一个需要作为博客源码的目录文件夹</p>
+<pre><code class="bash">$ mkdir yourblogdir
+$ cd yourblogdir
+</code></pre>
+<p>进入到yourblogdir目录之后，初始化博客项目<br><em>我们这里的所有命令都是基于根目录来的，也就是yourblogdir</em></p>
+<p>执行下面两行命令</p>
+<pre><code class="bash">$ hexo init
+$ npm install
+</code></pre>
+<p>其中<code>source/_posts</code>目录是用来存放博客文章的文件夹</p>
+<p><code>themes</code>目录用来存放主题的文件，默认使用官方的的主题，你也可以从<a href="https://github.com/hexojs/hexo/wiki/Themes" target="_blank" rel="external">Hexo主题页面</a>下载你喜欢的主题</p>
+<h1 id="3-Hexo配置"><a href="#3-Hexo配置" class="headerlink" title="3.Hexo配置"></a><a name="config">3.Hexo配置</a></h1><p>打开根目录下面的_config.yml文件，在这里我们需要配置一些个人信息</p>
+<p>包括部署相关的配置都是在这里面配置</p>
+<pre><code># Site 个人站点信息配置
+title: Heaven Blog #博客名称
+subtitle:
+description:
+author: Heaven  #作者，引用在文章底部
+language:
+timezone:
+
+# URL
+## If your site is put in a subdirectory, set url as &#39;http://yoursite.com/child&#39; and root as &#39;/child/&#39;
+url: http://heavenru.com
+root: /
+permalink: :year/:month/:day/:title/
+permalink_defaults:
+
+# Directory
+source_dir: source
+public_dir: public
+tag_dir: tags
+archive_dir: archives
+category_dir: categories
+code_dir: downloads/code
+i18n_dir: :lang
+skip_render:
+
+# Writing
+new_post_name: :title.md # File name of new posts
+default_layout: post
+titlecase: false # Transform title into titlecase
+external_link: true # Open external links in new tab
+filename_case: 0
+render_drafts: false
+post_asset_folder: false
+relative_link: false
+future: true
+highlight:
+  enable: true
+  line_number: true
+  auto_detect: true
+  tab_replace:
+
+# Category &amp; Tag
+default_category: uncategorized
+category_map:
+tag_map:
+
+# Date / Time format
+## Hexo uses Moment.js to parse and display date
+## You can customize the date format as defined in
+## http://momentjs.com/docs/#/displaying/format/
+date_format: YYYY-MM-DD
+time_format: HH:mm:ss
+
+# Pagination
+## Set per_page to 0 to disable pagination
+per_page: 10
+pagination_dir: page
+
+# Extensions
+## Plugins: http://hexo.io/plugins/
+## Themes: http://hexo.io/themes/
+theme: landscape
+
+# Deployment
+## 发用用的配置，用来向github推送编译好的html文件，这里需要自己安装一个插件，有点坑
+## 记得将yourgithubname换成你自己的github账户名称
+deploy:
+  type: git
+  repository: https://github.com/yourgithubname/yourgithubname.github.io.git
+  branch: master
+
+#订约需要使用的配置
+feed:
+  type: atom
+  path: atom.xml
+  limit: 20
+
+
+#网站地图配置，我自己暂时没有用到
+sitemap:
+  path: sitemap.xml
+</code></pre><h1 id="4-写文章"><a href="#4-写文章" class="headerlink" title="4. 写文章"></a><a name="write">4. 写文章</a></h1><p>Hexo使用markdown语法的纯文本存放文章 后缀为.md 你可以在_post文件夹里面新建这个后缀的.md文件 使用的全是UTF-8编码</p>
+<p>也可以输入命令以生成</p>
+<pre><code class="bash">$ hexo new post &lt;title&gt;
+</code></pre>
+<p>其中<code>post</code>参数表示新建文章到post目录，文件名为<code>title.md</code>的文件</p>
+<p>如果是要新建一个和post不同的类目</p>
+<pre><code class="bash">$ hexo new page &lt;title&gt;
+</code></pre>
+<p>查看下刚刚生成的<code>title.md</code>文件</p>
+<pre><code>title: 使用Hexo搭建GitHub个人博客
+date: 2015-09-02 18:31:25
+tags:
+- study
+- demo
+categories:
+- 教程
+---
+</code></pre><p>这里解释下对应的参数作用：<br>title很明显就是文章的标题；<br>date就是文章的创建日期；<br>tags标签，用来给你的文章打上标签，支持多个标签；<br>categories表示分类，用来给文章分类使用，同样支持多个分类；</p>
+<p>正文中可以使用<code>&lt;!--more--&gt;</code>设置文章摘要 如下：</p>
+<pre><code>以上是摘要
+&lt;!--more--&gt;
+以下是余下全文
+</code></pre><p>more以上内容即是文章摘要，在主页显示，more以下内容点击『&gt; Read More』链接打开全文才显示。</p>
+<h1 id="5-Hexo部署"><a href="#5-Hexo部署" class="headerlink" title="5. Hexo部署"></a><a name="deploy">5. Hexo部署</a></h1><p>上面的步骤完成之后，就可以启动本地服务测试了，输入以下命令</p>
+<pre><code class="bash">$ hexo server
+</code></pre>
+<p>前面我们提到的<code>deploy</code>配置参数，就是用来将生成的博客部署到<code>GitHub</code>上面去，<br>执行以下命令就能可以了，这里有个坑，先暂时不说，继续往下看。</p>
+<pre><code class="bash">$ hexo clean #清除原来的缓存
+$ hexo g #生成静态网页
+$ hexo d #发布到github
+</code></pre>
+<h1 id="6-Hexo常用插件"><a href="#6-Hexo常用插件" class="headerlink" title="6. Hexo常用插件"></a><a name="plugins">6. Hexo常用插件</a></h1><ul>
+<li><p>git方式部署插件<br>安装<code>hexo-deployer-git</code>插件即可，如果没有安装，默认发布是会报错的。</p>
+</li>
+<li><p>Sitemap站点地图<br>这个不是给你看的 是给搜索引擎看的<br>安装<code>hexo-generator-sitemap</code>即可</p>
+</li>
+<li><p>RSS订阅<br>安装<code>hexo-generator-sitemap</code>插件即可</p>
+</li>
+</ul>
+<p>以上的插件，其中<code>hexo-generator-sitemap</code>和<code>hexo-generator-sitemap</code>需要在<code>_config.yml</code>中配置开启，前面我们配置文件中已经开启了。</p>
+<p>更多插件可以去Hexo插件wiki找到 <a href="https://github.com/hexojs/hexo/wiki/Plugins" target="_blank" rel="external">https://github.com/hexojs/hexo/wiki/Plugins</a></p>
+<p>以上就是Hexo的基本使用方法 进阶的可以在Hexo的官方文档里找到 感谢阅读! </p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;最近突然想起来要捣鼓一个自己的个人博客网站，在网上查了下各种资料，最后决定使用Hexo来搭建了。在捣鼓的过程中也发现有很多坑，在这里总结下个人的搭建经历。&lt;/p&gt;
+&lt;h2 id=&quot;目录&quot;&gt;&lt;a href=&quot;#目录&quot; class=&quot;headerlink&quot; title=&quot;目录&quot;&gt;&lt;/a&gt;目录&lt;/h2&gt;&lt;ol&gt;
+&lt;li&gt;&lt;a href=&quot;#intro&quot;&gt;Hexo简介&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#install&quot;&gt;Hexo安装方法&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#config&quot;&gt;Hexo配置&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#write&quot;&gt;写文章&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#deploy&quot;&gt;Hexo部署&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#plugins&quot;&gt;Hexo常用插件&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h1 id=&quot;1-Hexo简介&quot;&gt;&lt;a href=&quot;#1-Hexo简介&quot; class=&quot;headerlink&quot; title=&quot;1. Hexo简介&quot;&gt;&lt;/a&gt;&lt;a name=&quot;intro&quot;&gt;1. Hexo简介&lt;/a&gt;&lt;/h1&gt;&lt;p&gt;Hexo 是一个轻量的静态博客框架。通过Hexo可以快速生成一个静态博客框架,仅需要几条命令就可以完成,相当方便。&lt;/p&gt;
+&lt;p&gt;而架设Hexo的环境更简单了 不需要lnmp/lamp这些繁琐复杂的环境 仅仅需要一个简单的http服务器即可使用 或者使用互联网上免费的页面托管服务&lt;br&gt;比如Hexo的官方网站&lt;a href=&quot;http://hexo.io&quot;&gt;http://hexo.io&lt;/a&gt; 就是托管于github的pages服务上&lt;/p&gt;
+    
+    </summary>
+    
+      <category term="教程" scheme="http://heavenru.com/blog/categories/%E6%95%99%E7%A8%8B/"/>
+    
+    
+      <category term="study" scheme="http://heavenru.com/blog/tags/study/"/>
+    
+      <category term="demo" scheme="http://heavenru.com/blog/tags/demo/"/>
+    
+  </entry>
+  
+</feed>
