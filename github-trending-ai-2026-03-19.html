@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub Trending AI 项目周榜 2026-03-19</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; background: #0f1117; color: #e2e8f0; }
+  .card { background: #1a1d27; border: 1px solid #2d3142; border-radius: 16px; }
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .tag-agent    { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed44; }
+  .tag-web      { background: #0891b222; color: #22d3ee; border: 1px solid #0891b244; }
+  .tag-rag      { background: #05966922; color: #34d399; border: 1px solid #05966944; }
+  .tag-audio    { background: #db277722; color: #f472b6; border: 1px solid #db277744; }
+  .tag-python   { background: #2563eb22; color: #60a5fa; border: 1px solid #2563eb44; }
+  .tag-ts       { background: #d9770622; color: #fbbf24; border: 1px solid #d9770644; }
+  .tag-other    { background: #6b728022; color: #9ca3af; border: 1px solid #6b728044; }
+  .lang-Python  { color: #60a5fa; }
+  .lang-TypeScript { color: #fbbf24; }
+  .lang-Shell   { color: #34d399; }
+  .lang-Zig     { color: #f472b6; }
+  .lang-JavaScript { color: #fb923c; }
+  .project-row:hover { background: #1e2231; }
+  .star-bar { height: 6px; border-radius: 3px; background: #2d3142; overflow: hidden; min-width: 60px; }
+  .star-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #0f1117; }
+  ::-webkit-scrollbar-thumb { background: #2d3142; border-radius: 2px; }
+
+  /* Mobile-only overrides */
+  @media (max-width: 768px) {
+    body { padding: 12px !important; }
+    .card { border-radius: 12px; }
+    h1 { font-size: 20px !important; line-height: 1.3; }
+    .text-3xl { font-size: 22px; }
+    .stat-card .text-3xl { font-size: 26px; }
+    .chart-card canvas { height: 200px !important; }
+    .scene-tag { font-size: 10px !important; padding: 2px 8px !important; }
+    table { font-size: 12px !important; }
+    .hide-mobile { display: none !important; }
+    .mobile-card-stack { display: flex; flex-direction: column; gap: 8px; }
+  }
+
+  @media (max-width: 480px) {
+    body { padding: 8px !important; }
+    .card { border-radius: 10px; padding: 12px !important; }
+    h1 { font-size: 17px !important; }
+    .subtitle { font-size: 10px !important; }
+    .stat-card { padding: 10px 6px !important; }
+    .stat-card .text-3xl { font-size: 20px; }
+    .stat-label { font-size: 9px !important; }
+    .chart-card { padding: 10px !important; }
+    .chart-card h3 { font-size: 11px !important; }
+    .chart-card canvas { height: 160px !important; }
+    .scene-tag { font-size: 9px !important; padding: 2px 6px !important; }
+    table { font-size: 11px !important; }
+    td, th { padding: 6px 4px !important; }
+    .tag { font-size: 9px !important; padding: 2px 6px !important; }
+  }
+
+  /* Desktop: prevent excessive chart heights */
+  @media (min-width: 769px) {
+    .chart-card canvas { height: 200px; }
+  }
+
+  .scene-tag { transition: opacity 0.2s; }
+  .scene-tag:hover { opacity: 0.8; }
+</style>
+</head>
+<body class="min-h-screen p-6">
+
+<!-- HEADER -->
+<div class="max-w-6xl mx-auto mb-4">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-purple-400 via-pink-400 to-yellow-400 bg-clip-text text-transparent leading-tight">
+        🚀 GitHub Trending AI 项目周榜
+      </h1>
+      <p class="subtitle text-gray-400 mt-1 text-xs sm:text-sm">数据来源：GitHub Trending · 统计周期：2026-03-13 ~ 03-19</p>
+    </div>
+    <div class="text-right shrink-0">
+      <div class="text-xs text-gray-500">最后更新</div>
+      <div class="text-sm font-semibold text-gray-300">2026-03-19 09:20</div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS ROW -->
+<div class="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+  <div class="card stat-card p-3 sm:p-4 text-center">
+    <div class="text-2xl sm:text-3xl font-extrabold text-purple-400">15</div>
+    <div class="stat-label text-xs text-gray-400 mt-1">AI 项目总数</div>
+  </div>
+  <div class="card stat-card p-3 sm:p-4 text-center">
+    <div class="text-2xl sm:text-3xl font-extrabold text-pink-400">128,530</div>
+    <div class="stat-label text-xs text-gray-400 mt-1">本周新增 ⭐</div>
+  </div>
+  <div class="card stat-card p-3 sm:p-4 text-center">
+    <div class="text-2xl sm:text-3xl font-extrabold text-yellow-400">6</div>
+    <div class="stat-label text-xs text-gray-400 mt-1">编程语言</div>
+  </div>
+  <div class="card stat-card p-3 sm:p-4 text-center">
+    <div class="text-2xl sm:text-3xl font-extrabold text-cyan-400">9</div>
+    <div class="stat-label text-xs text-gray-400 mt-1">AI Agent 类</div>
+  </div>
+</div>
+
+<!-- CHARTS: responsive grid -->
+<div class="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+  <div class="card chart-card p-3 sm:p-4">
+    <h3 class="font-bold text-xs sm:text-sm text-gray-300 mb-2 sm:mb-3">📊 分类分布</h3>
+    <canvas id="categoryChart"></canvas>
+  </div>
+  <div class="card chart-card p-3 sm:p-4">
+    <h3 class="font-bold text-xs sm:text-sm text-gray-300 mb-2 sm:mb-3">💻 语言分布</h3>
+    <canvas id="langChart"></canvas>
+  </div>
+  <div class="card chart-card p-3 sm:p-4 sm:col-span-2 lg:col-span-1">
+    <h3 class="font-bold text-xs sm:text-sm text-gray-300 mb-2 sm:mb-3">⭐ 本周 Stars TOP 8</h3>
+    <canvas id="starChart"></canvas>
+  </div>
+</div>
+
+<!-- LANGUAGE COMBO CHART -->
+<div class="max-w-6xl mx-auto card chart-card p-3 sm:p-4 mb-3">
+  <h3 class="font-bold text-xs sm:text-sm text-gray-300 mb-2 sm:mb-3">🗣️ 各语言项目数 & Stars 对比</h3>
+  <canvas id="langBarChart"></canvas>
+</div>
+
+<!-- MOBILE PROJECT CARDS (shown on mobile) -->
+<div class="max-w-6xl mx-auto md:hidden mb-3" id="mobileCards"></div>
+
+<!-- TABLE (hidden on mobile, shown as cards) -->
+<div class="max-w-6xl mx-auto card overflow-hidden mb-3 hidden md:block">
+  <div class="p-3 sm:p-4 border-b border-gray-700 flex items-center justify-between">
+    <h3 class="font-bold text-gray-300 text-xs sm:text-sm">📋 完整项目列表</h3>
+    <span class="text-xs text-gray-500">按本周新增 ⭐ 降序</span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-xs sm:text-sm">
+      <thead class="bg-[#12151e]">
+        <tr class="text-gray-400 text-left text-xs uppercase tracking-wider">
+          <th class="p-2 sm:p-3 font-semibold">#</th>
+          <th class="p-2 sm:p-3 font-semibold">项目</th>
+          <th class="p-2 sm:p-3 font-semibold hide-mobile">作者</th>
+          <th class="p-2 sm:p-3 font-semibold">语言</th>
+          <th class="p-2 sm:p-3 font-semibold">分类</th>
+          <th class="p-2 sm:p-3 font-semibold text-right">本周 ⭐</th>
+          <th class="p-2 sm:p-3 font-semibold text-right hide-mobile">总 ⭐</th>
+          <th class="p-2 sm:p-3 font-semibold hide-mobile">趋势</th>
+          <th class="p-2 sm:p-3 font-semibold hide-mobile">提交</th>
+        </tr>
+      </thead>
+      <tbody id="projectTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MOBILE-ONLY TABLE alternatively show as stacked cards -->
+<!-- (handled by #mobileCards above) -->
+
+<!-- SCENE TAGS -->
+<div class="max-w-6xl mx-auto card p-3 sm:p-4 mb-4">
+  <h3 class="font-bold text-xs sm:text-sm text-gray-300 mb-3">🎯 适用场景分布</h3>
+  <div id="sceneTags" class="flex flex-wrap gap-1.5"></div>
+</div>
+
+<!-- FOOTER -->
+<div class="max-w-6xl mx-auto text-center text-xs text-gray-600 pb-4">
+  数据来源：GitHub Trending (weekly) · 生成时间：2026-03-19 · by 如风001
+</div>
+
+<script>
+const projects = [
+  { rank:1,  name:"agency-agents",      author:"msitarzewski",  lang:"Shell",       cat:"tag-agent",   catName:"AI Agent",    weekly:25297, total:54128,  last:"03-18", scene:"自动化办公 / 社交媒体运营 / 多Agent协作 / 前端开发",       desc:"完整的AI agent套件，包含前端工程师、Reddit社区运营等多种专业化agent" },
+  { rank:2,  name:"superpowers",        author:"obra",          lang:"Shell",       cat:"tag-agent",   catName:"AI Agent",    weekly:17527, total:96246,  last:"03-18", scene:"AI软件开发 / Agent技能编排 / 自动化编程 / 开发工作流",       desc:"Agentic skills框架及软件开发方法论" },
+  { rank:3,  name:"MiroFish",           author:"666ghj",        lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:17714, total:34393,  last:"03-18", scene:"AI预测 / 群体智能研究 / 自然语言处理 / 数据分析",           desc:"简洁通用的群体智能引擎，预测万物" },
+  { rank:4,  name:"OpenViking",         author:"volcengine",    lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:9840,  total:15814,  last:"03-18", scene:"Agent记忆管理 / 上下文管理 / 多Agent系统 / RAG",            desc:"字节跳动开源的AI Agent上下文数据库" },
+  { rank:5,  name:"browser",            author:"lightpanda-io", lang:"Zig",         cat:"tag-web",     catName:"网页/浏览器", weekly:9442,  total:21776,  last:"03-16", scene:"网页自动化测试 / AI数据采集 / 爬虫 / 浏览器自动化",         desc:"专为AI设计的轻量级无头浏览器" },
+  { rank:6,  name:"learn-claude-code",  author:"shareAI-lab",   lang:"TypeScript",  cat:"tag-agent",   catName:"AI Agent",    weekly:6715,  total:32196,  last:"03-18", scene:"AI编程辅助 / 代码生成 / 自动化调试 / 开发效率提升",         desc:"从零构建的Claude Code类agent框架" },
+  { rank:7,  name:"impeccable",         author:"pbakaus",       lang:"JavaScript",  cat:"tag-other",   catName:"其他",        weekly:6457,  total:10530,  last:"03-16", scene:"AI生成UI / 设计系统 / 前端开发 / 界面优化",                desc:"AI UI设计语言框架" },
+  { rank:8,  name:"BitNet",             author:"microsoft",     lang:"Python",      cat:"tag-python",  catName:"Python AI",   weekly:6457,  total:35638,  last:"03-17", scene:"大模型量化部署 / 边缘设备AI / 模型压缩 / 移动端部署",       desc:"微软官方1-bit LLM推理框架" },
+  { rank:9,  name:"page-agent",         author:"alibaba",       lang:"TypeScript",  cat:"tag-web",     catName:"网页/浏览器", weekly:6794,  total:11281,  last:"03-17", scene:"UI自动化测试 / 智能网页操作 / RPA / 自然语言界面控制",      desc:"阿里巴巴开源的页面GUI agent" },
+  { rank:10, name:"promptfoo",          author:"promptfoo",      lang:"TypeScript",  cat:"tag-agent",   catName:"AI Agent",    weekly:5060,  total:17458,  last:"03-18", scene:"Prompt工程测试 / 模型评估 / 红队测试 / CI/CD集成",           desc:"Prompt和Agent测试框架" },
+  { rank:11, name:"deepagents",         author:"langchain-ai",  lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:4380,  total:15127,  last:"03-17", scene:"复杂任务自动化 / 多步骤推理 / Agent编排 / 企业自动化",       desc:"基于LangChain和LangGraph的agent框架" },
+  { rank:12, name:"hermes-agent",       author:"NousResearch",  lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:4046,  total:8846,   last:"03-16", scene:"自主Agent / 持续学习系统 / 智能助手 / 长任务处理",            desc:"可成长的AI agent框架，支持自我进化" },
+  { rank:13, name:"hindsight",          author:"vectorize-io",  lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:2183,  total:4938,   last:"03-15", scene:"Agent记忆 / 个性化学习 / 上下文优化 / 长期会话管理",         desc:"具备学习能力的Agent记忆系统" },
+  { rank:14, name:"openrag",            author:"langflow-ai",   lang:"Python",      cat:"tag-rag",     catName:"RAG/知识库",   weekly:2537,  total:3286,   last:"03-15", scene:"企业知识库 / 智能问答 / RAG系统 / 文档检索",                  desc:"基于Langflow和OpenSearch的RAG平台" },
+  { rank:15, name:"fish-speech",        author:"fishaudio",     lang:"Python",      cat:"tag-audio",   catName:"语音/音频",   weekly:2606,  total:28161,  last:"03-17", scene:"语音合成 / 播报系统 / 无障碍辅助 / 有声内容创作",            desc:"SOTA开源语音合成模型" },
+];
+
+const maxWeekly = Math.max(...projects.map(p => p.weekly));
+const maxTotal   = Math.max(...projects.map(p => p.total));
+
+// ── Render desktop table ──────────────────────────────────────────────────
+const tbody = document.getElementById('projectTable');
+projects.forEach(p => {
+  const barW = (p.weekly / maxWeekly * 100).toFixed(1);
+  const lc   = `lang-${p.lang === 'TypeScript' ? 'TypeScript' : p.lang === 'JavaScript' ? 'JavaScript' : p.lang}`;
+  const tr = document.createElement('tr');
+  tr.className = 'project-row border-b border-gray-800 transition-colors';
+  tr.innerHTML = `
+    <td class="p-2 sm:p-3 text-gray-500 font-mono text-xs">${p.rank}</td>
+    <td class="p-2 sm:p-3">
+      <div class="font-bold text-white text-xs sm:text-sm">${p.name}</div>
+      <div class="text-xs text-gray-500 mt-0.5 hidden sm:block">${p.desc}</div>
+    </td>
+    <td class="p-2 sm:p-3 text-gray-400 text-xs hide-mobile">${p.author}</td>
+    <td class="p-2 sm:p-3"><span class="font-mono text-xs font-bold ${lc}">${p.lang}</span></td>
+    <td class="p-2 sm:p-3"><span class="tag ${p.cat}">${p.catName}</span></td>
+    <td class="p-2 sm:p-3 text-right"><span class="text-purple-400 font-bold">${p.weekly>=1000?(p.weekly/1000).toFixed(1)+'k':p.weekly}</span></td>
+    <td class="p-2 sm:p-3 text-right text-gray-400 hide-mobile">${p.total>=1000?(p.total/1000).toFixed(1)+'k':p.total}</td>
+    <td class="p-2 sm:p-3 hide-mobile"><div class="star-bar"><div class="star-fill" style="width:${barW}%"></div></div></td>
+    <td class="p-2 sm:p-3 text-gray-500 text-xs hide-mobile">${p.last}</td>
+  `;
+  tbody.appendChild(tr);
+});
+
+// ── Render mobile cards ──────────────────────────────────────────────────
+const mobileCards = document.getElementById('mobileCards');
+projects.forEach(p => {
+  const barW = (p.weekly / maxWeekly * 100).toFixed(1);
+  const card = document.createElement('div');
+  card.className = 'card p-3 mb-2';
+  card.innerHTML = `
+    <div class="flex items-start justify-between gap-2 mb-2">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="font-mono text-xs text-gray-500">${p.rank}</span>
+        <span class="font-bold text-white text-sm">${p.name}</span>
+        <span class="tag ${p.cat}">${p.catName}</span>
+        <span class="font-mono text-xs font-bold lang-${p.lang === 'TypeScript' ? 'TypeScript' : p.lang === 'JavaScript' ? 'JavaScript' : p.lang}">${p.lang}</span>
+      </div>
+      <div class="text-right shrink-0">
+        <div class="text-purple-400 font-bold text-sm">${p.weekly>=1000?(p.weekly/1000).toFixed(1)+'k':p.weekly} ⭐</div>
+        <div class="text-gray-500 text-xs">总 ${p.total>=1000?(p.total/1000).toFixed(1)+'k':p.total}</div>
+      </div>
+    </div>
+    <div class="text-xs text-gray-400 mb-2">${p.desc}</div>
+    <div class="flex items-center gap-2 flex-wrap mb-2">
+      ${p.scene.split(' / ').map(s => `<span class="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">${s}</span>`).join('')}
+    </div>
+    <div class="star-bar"><div class="star-fill" style="width:${barW}%"></div></div>
+  `;
+  mobileCards.appendChild(card);
+});
+
+// ── Scene tags ───────────────────────────────────────────────────────────
+const sceneContainer = document.getElementById('sceneTags');
+const allScenes = projects.map(p => p.scene.split(' / ')).flat();
+const sceneCounts = {};
+allScenes.forEach(s => { sceneCounts[s] = (sceneCounts[s] || 0) + 1; });
+Object.entries(sceneCounts).forEach(([scene, count]) => {
+  const hue = (scene.charCodeAt(0) * 37 + scene.length * 13) % 360;
+  const tag = document.createElement('span');
+  tag.className = 'tag scene-tag';
+  tag.style.cssText = `background:hsla(${hue},70%,20%,0.3);color:hsl(${hue},70%,75%);border:1px solid hsla(${hue},70%,50%,0.3)`;
+  tag.textContent = `${scene} ×${count}`;
+  sceneContainer.appendChild(tag);
+});
+
+// ── Charts ──────────────────────────────────────────────────────────────
+const commonOptions = {
+  responsive: true,
+  maintainAspectRatio: true,
+  plugins: {
+    legend: { labels: { color: '#9ca3af', boxWidth: 10, padding: 6, font: { size: 10 } } }
+  }
+};
+
+const gridColor = '#2d3142';
+const tickColor = '#9ca3af';
+
+const catCount = {};
+projects.forEach(p => { catCount[p.catName] = (catCount[p.catName] || 0) + 1; });
+new Chart(document.getElementById('categoryChart'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(catCount),
+    datasets: [{ data: Object.values(catCount), backgroundColor: ['#7c3aed','#0891b2','#059669','#db2777','#2563eb','#d97706','#6b7280'], borderWidth: 0 }]
+  },
+  options: { ...commonOptions, cutout: '55%', plugins: { ...commonOptions.plugins, legend: { ...commonOptions.plugins.legend, position: 'bottom' } } }
+});
+
+const langCount = {};
+const langTotal = {};
+projects.forEach(p => {
+  langCount[p.lang] = (langCount[p.lang] || 0) + 1;
+  langTotal[p.lang] = (langTotal[p.lang] || 0) + p.total;
+});
+new Chart(document.getElementById('langChart'), {
+  type: 'bar',
+  data: {
+    labels: Object.keys(langCount),
+    datasets: [
+      { label:'项目数', data: Object.values(langCount), backgroundColor:'#7c3aed88', borderColor:'#7c3aed', borderWidth:1 },
+      { label:'总⭐(K)', data: Object.values(langTotal).map(v=>(v/1000).toFixed(1)), backgroundColor:'#22d3ee44', borderColor:'#22d3ee', borderWidth:1 }
+    ]
+  },
+  options: { ...commonOptions, scales: { x:{ grid:{color:gridColor}, ticks:{color:tickColor, font:{size:9}} }, y:{ grid:{color:gridColor}, ticks:{color:tickColor, font:{size:9}} } } }
+});
+
+const top8 = projects.slice(0, 8);
+new Chart(document.getElementById('starChart'), {
+  type: 'bar',
+  data: {
+    labels: top8.map(p=>p.name),
+    datasets: [
+      { label:'本周新增', data: top8.map(p=>p.weekly), backgroundColor:'#7c3aed88', borderColor:'#7c3aed', borderWidth:1 },
+      { label:'总⭐(K)', data: top8.map(p=>(p.total/1000).toFixed(1)), backgroundColor:'#f472b644', borderColor:'#f472b6', borderWidth:1 }
+    ]
+  },
+  options: { ...commonOptions, indexAxis:'y', plugins: { ...commonOptions.plugins, legend: { ...commonOptions.plugins.legend, display: true } }, scales: { x:{ grid:{color:gridColor}, ticks:{color:tickColor, font:{size:9}, callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v }, title:{display:true,text:'Stars',color:tickColor} }, y:{ grid:{display:false}, ticks:{color:tickColor, font:{size:9}} } } }
+});
+
+new Chart(document.getElementById('langBarChart'), {
+  type: 'bar',
+  data: {
+    labels: Object.keys(langCount),
+    datasets: [
+      { type:'bar', label:'项目数', data: Object.values(langCount), backgroundColor:'#7c3aed66', borderColor:'#7c3aed', borderWidth:1, yAxisID:'y' },
+      { type:'line', label:'总⭐(K)', data: Object.values(langTotal).map(v=>(v/1000).toFixed(1)), borderColor:'#fbbf24', backgroundColor:'#fbbf24', tension:0.4, yAxisID:'y1' }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { ...commonOptions.plugins },
+    scales: {
+      x:{ grid:{color:gridColor}, ticks:{color:tickColor, font:{size:9}} },
+      y:{ grid:{color:gridColor}, ticks:{color:tickColor, font:{size:9}}, title:{display:true,text:'项目数',color:'#7c3aed'} },
+      y1:{ grid:{display:false}, ticks:{color:'#fbbf24', font:{size:9}}, position:'right', title:{display:true,text:'Stars(K)',color:'#fbbf24'} }
+    }
+  }
+});
+</script>
+</body>
+</html>
