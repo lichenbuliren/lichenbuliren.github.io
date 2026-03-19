@@ -68,6 +68,8 @@
 
   .scene-tag { transition: opacity 0.2s; }
   .scene-tag:hover { opacity: 0.8; }
+  .gh-link { display: inline-flex; align-items: center; gap: 3px; color: #60a5fa; text-decoration: none; font-size: 11px; transition: color 0.2s; }
+  .gh-link:hover { color: #93c5fd; text-decoration: underline; }
 </style>
 </head>
 <body class="min-h-screen p-6">
@@ -175,21 +177,21 @@
 
 <script>
 const projects = [
-  { rank:1,  name:"agency-agents",      author:"msitarzewski",  lang:"Shell",       cat:"tag-agent",   catName:"AI Agent",    weekly:25297, total:54128,  last:"03-18", scene:"自动化办公 / 社交媒体运营 / 多Agent协作 / 前端开发",       desc:"完整的AI agent套件，包含前端工程师、Reddit社区运营等多种专业化agent" },
-  { rank:2,  name:"superpowers",        author:"obra",          lang:"Shell",       cat:"tag-agent",   catName:"AI Agent",    weekly:17527, total:96246,  last:"03-18", scene:"AI软件开发 / Agent技能编排 / 自动化编程 / 开发工作流",       desc:"Agentic skills框架及软件开发方法论" },
-  { rank:3,  name:"MiroFish",           author:"666ghj",        lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:17714, total:34393,  last:"03-18", scene:"AI预测 / 群体智能研究 / 自然语言处理 / 数据分析",           desc:"简洁通用的群体智能引擎，预测万物" },
-  { rank:4,  name:"OpenViking",         author:"volcengine",    lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:9840,  total:15814,  last:"03-18", scene:"Agent记忆管理 / 上下文管理 / 多Agent系统 / RAG",            desc:"字节跳动开源的AI Agent上下文数据库" },
-  { rank:5,  name:"browser",            author:"lightpanda-io", lang:"Zig",         cat:"tag-web",     catName:"网页/浏览器", weekly:9442,  total:21776,  last:"03-16", scene:"网页自动化测试 / AI数据采集 / 爬虫 / 浏览器自动化",         desc:"专为AI设计的轻量级无头浏览器" },
-  { rank:6,  name:"learn-claude-code",  author:"shareAI-lab",   lang:"TypeScript",  cat:"tag-agent",   catName:"AI Agent",    weekly:6715,  total:32196,  last:"03-18", scene:"AI编程辅助 / 代码生成 / 自动化调试 / 开发效率提升",         desc:"从零构建的Claude Code类agent框架" },
-  { rank:7,  name:"impeccable",         author:"pbakaus",       lang:"JavaScript",  cat:"tag-other",   catName:"其他",        weekly:6457,  total:10530,  last:"03-16", scene:"AI生成UI / 设计系统 / 前端开发 / 界面优化",                desc:"AI UI设计语言框架" },
-  { rank:8,  name:"BitNet",             author:"microsoft",     lang:"Python",      cat:"tag-python",  catName:"Python AI",   weekly:6457,  total:35638,  last:"03-17", scene:"大模型量化部署 / 边缘设备AI / 模型压缩 / 移动端部署",       desc:"微软官方1-bit LLM推理框架" },
-  { rank:9,  name:"page-agent",         author:"alibaba",       lang:"TypeScript",  cat:"tag-web",     catName:"网页/浏览器", weekly:6794,  total:11281,  last:"03-17", scene:"UI自动化测试 / 智能网页操作 / RPA / 自然语言界面控制",      desc:"阿里巴巴开源的页面GUI agent" },
-  { rank:10, name:"promptfoo",          author:"promptfoo",      lang:"TypeScript",  cat:"tag-agent",   catName:"AI Agent",    weekly:5060,  total:17458,  last:"03-18", scene:"Prompt工程测试 / 模型评估 / 红队测试 / CI/CD集成",           desc:"Prompt和Agent测试框架" },
-  { rank:11, name:"deepagents",         author:"langchain-ai",  lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:4380,  total:15127,  last:"03-17", scene:"复杂任务自动化 / 多步骤推理 / Agent编排 / 企业自动化",       desc:"基于LangChain和LangGraph的agent框架" },
-  { rank:12, name:"hermes-agent",       author:"NousResearch",  lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:4046,  total:8846,   last:"03-16", scene:"自主Agent / 持续学习系统 / 智能助手 / 长任务处理",            desc:"可成长的AI agent框架，支持自我进化" },
-  { rank:13, name:"hindsight",          author:"vectorize-io",  lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:2183,  total:4938,   last:"03-15", scene:"Agent记忆 / 个性化学习 / 上下文优化 / 长期会话管理",         desc:"具备学习能力的Agent记忆系统" },
-  { rank:14, name:"openrag",            author:"langflow-ai",   lang:"Python",      cat:"tag-rag",     catName:"RAG/知识库",   weekly:2537,  total:3286,   last:"03-15", scene:"企业知识库 / 智能问答 / RAG系统 / 文档检索",                  desc:"基于Langflow和OpenSearch的RAG平台" },
-  { rank:15, name:"fish-speech",        author:"fishaudio",     lang:"Python",      cat:"tag-audio",   catName:"语音/音频",   weekly:2606,  total:28161,  last:"03-17", scene:"语音合成 / 播报系统 / 无障碍辅助 / 有声内容创作",            desc:"SOTA开源语音合成模型" },
+  { rank:1,  name:"agency-agents",      author:"msitarzewski",  lang:"Shell",       cat:"tag-agent",   catName:"AI Agent",    weekly:25297, total:54128,  last:"03-18", scene:"自动化办公 / 社交媒体运营 / 多Agent协作 / 前端开发",       desc:"完整的AI agent套件，包含前端工程师、Reddit社区运营等多种专业化agent", url:"https://github.com/msitarzewski/agency-agents" },
+  { rank:2,  name:"superpowers",        author:"obra",          lang:"Shell",       cat:"tag-agent",   catName:"AI Agent",    weekly:17527, total:96246,  last:"03-18", scene:"AI软件开发 / Agent技能编排 / 自动化编程 / 开发工作流",       desc:"Agentic skills框架及软件开发方法论", url:"https://github.com/obra/superpowers" },
+  { rank:3,  name:"MiroFish",           author:"666ghj",        lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:17714, total:34393,  last:"03-18", scene:"AI预测 / 群体智能研究 / 自然语言处理 / 数据分析",           desc:"简洁通用的群体智能引擎，预测万物", url:"https://github.com/666ghj/MiroFish" },
+  { rank:4,  name:"OpenViking",         author:"volcengine",    lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:9840,  total:15814,  last:"03-18", scene:"Agent记忆管理 / 上下文管理 / 多Agent系统 / RAG",            desc:"字节跳动开源的AI Agent上下文数据库", url:"https://github.com/volcengine/OpenViking" },
+  { rank:5,  name:"browser",            author:"lightpanda-io", lang:"Zig",         cat:"tag-web",     catName:"网页/浏览器", weekly:9442,  total:21776,  last:"03-16", scene:"网页自动化测试 / AI数据采集 / 爬虫 / 浏览器自动化",         desc:"专为AI设计的轻量级无头浏览器", url:"https://github.com/lightpanda-io/browser" },
+  { rank:6,  name:"learn-claude-code",  author:"shareAI-lab",   lang:"TypeScript",  cat:"tag-agent",   catName:"AI Agent",    weekly:6715,  total:32196,  last:"03-18", scene:"AI编程辅助 / 代码生成 / 自动化调试 / 开发效率提升",         desc:"从零构建的Claude Code类agent框架", url:"https://github.com/shareAI-lab/learn-claude-code" },
+  { rank:7,  name:"impeccable",         author:"pbakaus",       lang:"JavaScript",  cat:"tag-other",   catName:"其他",        weekly:6457,  total:10530,  last:"03-16", scene:"AI生成UI / 设计系统 / 前端开发 / 界面优化",                desc:"AI UI设计语言框架", url:"https://github.com/pbakaus/impeccable" },
+  { rank:8,  name:"BitNet",             author:"microsoft",     lang:"Python",      cat:"tag-python",  catName:"Python AI",   weekly:6457,  total:35638,  last:"03-17", scene:"大模型量化部署 / 边缘设备AI / 模型压缩 / 移动端部署",       desc:"微软官方1-bit LLM推理框架", url:"https://github.com/microsoft/BitNet" },
+  { rank:9,  name:"page-agent",         author:"alibaba",       lang:"TypeScript",  cat:"tag-web",     catName:"网页/浏览器", weekly:6794,  total:11281,  last:"03-17", scene:"UI自动化测试 / 智能网页操作 / RPA / 自然语言界面控制",      desc:"阿里巴巴开源的页面GUI agent", url:"https://github.com/alibaba/page-agent" },
+  { rank:10, name:"promptfoo",          author:"promptfoo",      lang:"TypeScript",  cat:"tag-agent",   catName:"AI Agent",    weekly:5060,  total:17458,  last:"03-18", scene:"Prompt工程测试 / 模型评估 / 红队测试 / CI/CD集成",           desc:"Prompt和Agent测试框架", url:"https://github.com/promptfoo/promptfoo" },
+  { rank:11, name:"deepagents",         author:"langchain-ai",  lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:4380,  total:15127,  last:"03-17", scene:"复杂任务自动化 / 多步骤推理 / Agent编排 / 企业自动化",       desc:"基于LangChain和LangGraph的agent框架", url:"https://github.com/langchain-ai/deepagents" },
+  { rank:12, name:"hermes-agent",       author:"NousResearch",  lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:4046,  total:8846,   last:"03-16", scene:"自主Agent / 持续学习系统 / 智能助手 / 长任务处理",            desc:"可成长的AI agent框架，支持自我进化", url:"https://github.com/NousResearch/hermes-agent" },
+  { rank:13, name:"hindsight",          author:"vectorize-io",  lang:"Python",      cat:"tag-agent",   catName:"AI Agent",    weekly:2183,  total:4938,   last:"03-15", scene:"Agent记忆 / 个性化学习 / 上下文优化 / 长期会话管理",         desc:"具备学习能力的Agent记忆系统", url:"https://github.com/vectorize-io/hindsight" },
+  { rank:14, name:"openrag",            author:"langflow-ai",   lang:"Python",      cat:"tag-rag",     catName:"RAG/知识库",   weekly:2537,  total:3286,   last:"03-15", scene:"企业知识库 / 智能问答 / RAG系统 / 文档检索",                  desc:"基于Langflow和OpenSearch的RAG平台", url:"https://github.com/langflow-ai/openrag" },
+  { rank:15, name:"fish-speech",        author:"fishaudio",     lang:"Python",      cat:"tag-audio",   catName:"语音/音频",   weekly:2606,  total:28161,  last:"03-17", scene:"语音合成 / 播报系统 / 无障碍辅助 / 有声内容创作",            desc:"SOTA开源语音合成模型", url:"https://github.com/fishaudio/fish-speech" },
 ];
 
 const maxWeekly = Math.max(...projects.map(p => p.weekly));
@@ -205,7 +207,7 @@ projects.forEach(p => {
   tr.innerHTML = `
     <td class="p-2 sm:p-3 text-gray-500 font-mono text-xs">${p.rank}</td>
     <td class="p-2 sm:p-3">
-      <div class="font-bold text-white text-xs sm:text-sm">${p.name}</div>
+      <div class="font-bold text-white text-xs sm:text-sm"><a href="${p.url}" target="_blank" class="gh-link">${p.name} ↗</a></div>
       <div class="text-xs text-gray-500 mt-0.5 hidden sm:block">${p.desc}</div>
     </td>
     <td class="p-2 sm:p-3 text-gray-400 text-xs hide-mobile">${p.author}</td>
@@ -229,7 +231,7 @@ projects.forEach(p => {
     <div class="flex items-start justify-between gap-2 mb-2">
       <div class="flex items-center gap-2 flex-wrap">
         <span class="font-mono text-xs text-gray-500">${p.rank}</span>
-        <span class="font-bold text-white text-sm">${p.name}</span>
+        <a href="${p.url}" target="_blank" class="gh-link font-bold text-sm">${p.name} ↗</a>
         <span class="tag ${p.cat}">${p.catName}</span>
         <span class="font-mono text-xs font-bold lang-${p.lang === 'TypeScript' ? 'TypeScript' : p.lang === 'JavaScript' ? 'JavaScript' : p.lang}">${p.lang}</span>
       </div>
